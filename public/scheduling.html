@@ -17,7 +17,7 @@
           <li><a href="/prospects.html" data-page="prospects">Prospects & CRM</a></li>
           <li><a href="/campaigns.html" data-page="campaigns">Email Campaigns</a></li>
           <li><a href="/inbox.html" data-page="inbox">Inquiries & Replies</a></li>
-          <li><a href="/proposals.html" data-page="proposals">Proposals & Stripe</a></li>
+          <li><a href="/proposals.html" data-page="proposals">Client Subscriptions</a></li>
           <li><a href="/scheduling.html" data-page="scheduling">Demo Scheduling</a></li>
           <li><a href="/analytics.html" data-page="analytics">Analytics</a></li>
         </ul>
@@ -47,9 +47,15 @@
 
         <section class="card" style="margin-top:16px;">
           <h3>Upcoming Demos</h3>
+          <div class="flex" style="margin-bottom: 10px;">
+            <button class="small secondary" id="demoSelectAllBtn" type="button">Select All</button>
+            <button class="small secondary" id="demoClearSelectionBtn" type="button">Clear</button>
+            <button class="small secondary" id="demoDeleteSelectedBtn" type="button">Delete Selected</button>
+          </div>
           <table class="table">
             <thead>
               <tr>
+                <th>Select</th>
                 <th>Company</th>
                 <th>Contact</th>
                 <th>Date</th>

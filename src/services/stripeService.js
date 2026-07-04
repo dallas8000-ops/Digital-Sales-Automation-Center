@@ -6,16 +6,18 @@ function getStripeClient() {
     return null;
   }
 
-  return new Stripe(key, {
-    apiVersion: "2025-06-30.basil"
-  });
+  const apiVersion = String(process.env.STRIPE_API_VERSION || "").trim();
+  const clientOptions = apiVersion ? { apiVersion } : {};
+
+  return new Stripe(key, clientOptions);
 }
 
 function getStripeConfig() {
   return {
     enabled: Boolean(process.env.STRIPE_SECRET_KEY),
     hasWebhookSecret: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
-    publishableKeyConfigured: Boolean(process.env.STRIPE_PUBLISHABLE_KEY)
+    publishableKeyConfigured: Boolean(process.env.STRIPE_PUBLISHABLE_KEY),
+    apiVersion: String(process.env.STRIPE_API_VERSION || "default")
   };
 }
 
@@ -34,13 +36,14 @@ async function createCheckoutSession({ proposal, product, customerEmail }) {
   const cancelUrl = process.env.STRIPE_CANCEL_URL || "http://localhost:4000/proposals.html?payment=cancel";
 
   const session = await stripe.checkout.sessions.create({
-    mode: "payment",
+    mode: "subscription",
     success_url: successUrl,
     cancel_url: cancelUrl,
     customer_email: customerEmail || undefined,
     metadata: {
       proposalId: proposal.id,
-      productId: product.id
+      productId: product.id,
+      billingCycle: "monthly"
     },
     line_items: [
       {
@@ -48,8 +51,12 @@ async function createCheckoutSession({ proposal, product, customerEmail }) {
         price_data: {
           currency: "usd",
           unit_amount: Math.round(Number(proposal.total || product.priceFrom) * 100),
+          recurring: {
+            interval: "month",
+            interval_count: 1
+          },
           product_data: {
-            name: product.name,
+            name: `${product.name} (Monthly Client Usage)`,
             description: proposal.scope || product.description
           }
         }

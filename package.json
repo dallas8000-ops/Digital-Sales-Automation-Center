@@ -7,7 +7,8 @@
     "start": "node server.js",
     "dev": "node server.js",
     "seed": "node scripts/seed.js",
-    "process:email-jobs": "node scripts/process-email-jobs.js"
+    "process:email-jobs": "node scripts/process-email-jobs.js",
+    "connect:railway-stripe": "node scripts/connect-railway-stripe.js"
   },
   "keywords": [],
   "author": "",

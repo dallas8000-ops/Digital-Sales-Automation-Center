@@ -33,9 +33,12 @@ const app = express();
 const port = process.env.PORT || 4000;
 const sequenceDays = [1, 5, 12, 21];
 const ENV_PATH = path.join(__dirname, ".env");
+const SETTINGS_ADMIN_TOKEN = String(process.env.ADMIN_API_TOKEN || "").trim();
+const ALLOW_RUNTIME_SECRET_UPDATES = String(process.env.ALLOW_RUNTIME_SECRET_UPDATES || "false").toLowerCase() === "true";
 const MANAGED_ENV_KEYS = [
   "STRIPE_SECRET_KEY",
   "STRIPE_PUBLISHABLE_KEY",
+  "STRIPE_API_VERSION",
   "STRIPE_WEBHOOK_SECRET",
   "STRIPE_SUCCESS_URL",
   "STRIPE_CANCEL_URL",
@@ -92,16 +95,39 @@ function serializeEnv(map) {
     .join("\n");
 }
 
-function masked(value) {
-  if (!value) {
-    return null;
+function readBearerToken(req) {
+  const authHeader = String(req.headers.authorization || "").trim();
+  if (!authHeader.toLowerCase().startsWith("bearer ")) {
+    return "";
   }
 
-  if (value.length <= 6) {
-    return "***";
+  return authHeader.slice(7).trim();
+}
+
+function requireSettingsAdmin(req, res, next) {
+  const providedToken = readBearerToken(req) || String(req.headers["x-admin-token"] || "").trim();
+
+  if (!ALLOW_RUNTIME_SECRET_UPDATES) {
+    return res.status(403).json({
+      error: "runtime secret updates are disabled"
+    });
   }
 
-  return `${value.slice(0, 3)}***${value.slice(-3)}`;
+  if (!SETTINGS_ADMIN_TOKEN) {
+    return res.status(503).json({
+      error: "runtime secret updates require ADMIN_API_TOKEN"
+    });
+  }
+
+  if (!providedToken) {
+    return res.status(401).json({ error: "missing admin token" });
+  }
+
+  if (providedToken !== SETTINGS_ADMIN_TOKEN) {
+    return res.status(403).json({ error: "invalid admin token" });
+  }
+
+  return next();
 }
 
 ensureDb();
@@ -230,6 +256,85 @@ function matchesSearch(item, search) {
     .toLowerCase();
 
   return haystack.includes(search);
+}
+
+function filterCampaigns(list, query = {}) {
+  const search = normalizeString(query.search);
+  const industry = normalizeString(query.targetIndustry);
+  const status = normalizeString(query.status);
+  const product = normalizeString(query.product);
+
+  return list.filter((item) => {
+    const matchesText =
+      !search ||
+      `${item.name || ""} ${item.product || ""} ${item.targetIndustry || ""}`.toLowerCase().includes(search);
+
+    return (
+      matchesText &&
+      equalsIfSet(item.targetIndustry, industry) &&
+      equalsIfSet(item.status, status) &&
+      equalsIfSet(item.product, product)
+    );
+  });
+}
+
+function filterInquiries(list, query = {}) {
+  const search = normalizeString(query.search);
+  const status = normalizeString(query.status);
+  const priority = normalizeString(query.priority);
+  const sentiment = normalizeString(query.sentiment);
+
+  return list.filter((item) => {
+    const matchesText =
+      !search ||
+      `${item.name || ""} ${item.company || ""} ${item.email || ""} ${item.message || ""}`
+        .toLowerCase()
+        .includes(search);
+
+    return (
+      matchesText &&
+      equalsIfSet(item.status, status) &&
+      equalsIfSet(item.priority, priority) &&
+      equalsIfSet(item.sentiment, sentiment)
+    );
+  });
+}
+
+function normalizeIds(ids) {
+  if (!Array.isArray(ids)) {
+    return [];
+  }
+
+  return [...new Set(ids.map((id) => String(id || "").trim()).filter(Boolean))];
+}
+
+function removeMany(collection, ids) {
+  const normalizedIds = normalizeIds(ids);
+
+  if (normalizedIds.length === 0) {
+    return {
+      requested: 0,
+      removed: 0,
+      remaining: readDb()[collection].length
+    };
+  }
+
+  const idSet = new Set(normalizedIds);
+  const db = readDb();
+  const before = db[collection].length;
+
+  db[collection] = db[collection].filter((item) => !idSet.has(item.id));
+  const removed = before - db[collection].length;
+
+  if (removed > 0) {
+    writeDb(db);
+  }
+
+  return {
+    requested: normalizedIds.length,
+    removed,
+    remaining: db[collection].length
+  };
 }
 
 function filterAndSortProspects(list, query = {}) {
@@ -597,20 +702,10 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.get("/api/settings/env", (_req, res) => {
-  const fileValues = parseEnvFile();
-  const status = {};
-
-  for (const key of MANAGED_ENV_KEYS) {
-    const value = process.env[key] || fileValues[key] || "";
-    status[key] = {
-      configured: Boolean(value),
-      masked: masked(value)
-    };
-  }
-
   return res.json({
     envFileExists: fs.existsSync(ENV_PATH),
-    keys: status,
+    runtimeSecretUpdatesEnabled: ALLOW_RUNTIME_SECRET_UPDATES,
+    managedKeys: MANAGED_ENV_KEYS,
     integrations: {
       stripe: getStripeConfig(),
       email: getMailConfig(),
@@ -619,7 +714,7 @@ app.get("/api/settings/env", (_req, res) => {
   });
 });
 
-app.post("/api/settings/env", (req, res) => {
+app.post("/api/settings/env", requireSettingsAdmin, (req, res) => {
   const payload = req.body || {};
   const values = payload.values || {};
   const fileValues = parseEnvFile();
@@ -934,6 +1029,39 @@ app.delete("/api/prospects/:id", (req, res) => {
   return res.status(204).end();
 });
 
+app.post("/api/prospects/bulk-delete", (req, res) => {
+  const result = removeMany("prospects", req.body?.ids);
+
+  appendActivity("prospect.bulk_deleted", `Bulk delete executed for prospects`, {
+    requested: result.requested,
+    removed: result.removed,
+    remaining: result.remaining
+  });
+
+  return res.json(result);
+});
+
+app.post("/api/prospects/bulk-delete-by-query", (req, res) => {
+  const db = readDb();
+  const all = db.prospects.map(withScoring);
+  const query = req.body?.query || {};
+  const filtered = filterAndSortProspects(all, query);
+  const ids = filtered.map((item) => item.id);
+  const result = removeMany("prospects", ids);
+
+  appendActivity("prospect.bulk_deleted", `Bulk delete executed for filtered prospects`, {
+    matched: filtered.length,
+    requested: result.requested,
+    removed: result.removed,
+    remaining: result.remaining
+  });
+
+  return res.json({
+    ...result,
+    matched: filtered.length
+  });
+});
+
 app.get("/api/campaigns", (_req, res) => {
   const db = readDb();
   res.json(db.campaigns);
@@ -974,6 +1102,49 @@ app.post("/api/campaigns", (req, res) => {
   });
 
   return res.status(201).json(campaign);
+});
+
+app.delete("/api/campaigns/:id", (req, res) => {
+  const deleted = remove("campaigns", req.params.id);
+
+  if (!deleted) {
+    return res.status(404).json({ error: "campaign not found" });
+  }
+
+  appendActivity("campaign.deleted", `Campaign deleted: ${req.params.id}`);
+  return res.status(204).end();
+});
+
+app.post("/api/campaigns/bulk-delete", (req, res) => {
+  const result = removeMany("campaigns", req.body?.ids);
+
+  appendActivity("campaign.bulk_deleted", `Bulk delete executed for campaigns`, {
+    requested: result.requested,
+    removed: result.removed,
+    remaining: result.remaining
+  });
+
+  return res.json(result);
+});
+
+app.post("/api/campaigns/bulk-delete-by-query", (req, res) => {
+  const db = readDb();
+  const query = req.body?.query || {};
+  const filtered = filterCampaigns(db.campaigns, query);
+  const ids = filtered.map((item) => item.id);
+  const result = removeMany("campaigns", ids);
+
+  appendActivity("campaign.bulk_deleted", `Bulk delete executed for filtered campaigns`, {
+    matched: filtered.length,
+    requested: result.requested,
+    removed: result.removed,
+    remaining: result.remaining
+  });
+
+  return res.json({
+    ...result,
+    matched: filtered.length
+  });
 });
 
 app.post("/api/campaigns/:id/send", (req, res) => {
@@ -1170,6 +1341,49 @@ app.post("/api/inquiries/:id/reply", (req, res) => {
   return res.json({ inquiry: updated, reply });
 });
 
+app.delete("/api/inquiries/:id", (req, res) => {
+  const deleted = remove("inquiries", req.params.id);
+
+  if (!deleted) {
+    return res.status(404).json({ error: "inquiry not found" });
+  }
+
+  appendActivity("inquiry.deleted", `Inquiry deleted: ${req.params.id}`);
+  return res.status(204).end();
+});
+
+app.post("/api/inquiries/bulk-delete", (req, res) => {
+  const result = removeMany("inquiries", req.body?.ids);
+
+  appendActivity("inquiry.bulk_deleted", `Bulk delete executed for inquiries`, {
+    requested: result.requested,
+    removed: result.removed,
+    remaining: result.remaining
+  });
+
+  return res.json(result);
+});
+
+app.post("/api/inquiries/bulk-delete-by-query", (req, res) => {
+  const db = readDb();
+  const query = req.body?.query || {};
+  const filtered = filterInquiries(db.inquiries, query);
+  const ids = filtered.map((item) => item.id);
+  const result = removeMany("inquiries", ids);
+
+  appendActivity("inquiry.bulk_deleted", `Bulk delete executed for filtered inquiries`, {
+    matched: filtered.length,
+    requested: result.requested,
+    removed: result.removed,
+    remaining: result.remaining
+  });
+
+  return res.json({
+    ...result,
+    matched: filtered.length
+  });
+});
+
 app.get("/api/proposals", (_req, res) => {
   const db = readDb();
   res.json(db.proposals);
@@ -1189,13 +1403,14 @@ app.post("/api/proposals", async (req, res) => {
     return res.status(404).json({ error: "product not found" });
   }
 
-  const total = Number(payload.price || product.priceFrom);
+  const monthlyFee = Number(payload.price || product.priceFrom);
   const proposal = insert("proposals", {
     ...payload,
     productName: product.name,
     status: "draft",
     paymentStatus: "pending",
-    total
+    billingCycle: "monthly",
+    total: monthlyFee
   });
 
   const checkout = await createCheckoutSession({
@@ -1210,12 +1425,35 @@ app.post("/api/proposals", async (req, res) => {
     paymentProvider: checkout.provider
   });
 
-  appendActivity("proposal.created", `Proposal generated for ${saved.company}`, {
+  appendActivity("proposal.created", `Monthly subscription plan generated for ${saved.company}`, {
     proposalId: saved.id,
-    total
+    monthlyFee
   });
 
   return res.status(201).json(saved);
+});
+
+app.delete("/api/proposals/:id", (req, res) => {
+  const deleted = remove("proposals", req.params.id);
+
+  if (!deleted) {
+    return res.status(404).json({ error: "proposal not found" });
+  }
+
+  appendActivity("proposal.deleted", `Proposal deleted: ${req.params.id}`);
+  return res.status(204).end();
+});
+
+app.post("/api/proposals/bulk-delete", (req, res) => {
+  const result = removeMany("proposals", req.body?.ids);
+
+  appendActivity("proposal.bulk_deleted", `Bulk delete executed for proposals`, {
+    requested: result.requested,
+    removed: result.removed,
+    remaining: result.remaining
+  });
+
+  return res.json(result);
 });
 
 app.get("/api/integrations/status", (_req, res) => {
@@ -1257,6 +1495,29 @@ app.post("/api/demos", (req, res) => {
   });
 
   return res.status(201).json(demo);
+});
+
+app.delete("/api/demos/:id", (req, res) => {
+  const deleted = remove("demos", req.params.id);
+
+  if (!deleted) {
+    return res.status(404).json({ error: "demo not found" });
+  }
+
+  appendActivity("demo.deleted", `Demo deleted: ${req.params.id}`);
+  return res.status(204).end();
+});
+
+app.post("/api/demos/bulk-delete", (req, res) => {
+  const result = removeMany("demos", req.body?.ids);
+
+  appendActivity("demo.bulk_deleted", `Bulk delete executed for demos`, {
+    requested: result.requested,
+    removed: result.removed,
+    remaining: result.remaining
+  });
+
+  return res.json(result);
 });
 
 app.get("/api/analytics", (req, res) => {
@@ -1351,6 +1612,11 @@ app.delete("/api/activity/:id", (req, res) => {
   }
 
   return res.status(204).send();
+});
+
+app.post("/api/activity/bulk-delete", (req, res) => {
+  const result = removeMany("activities", req.body?.ids);
+  return res.json(result);
 });
 
 app.post("/api/activity/prune", (req, res) => {

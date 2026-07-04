@@ -35,6 +35,50 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function getSelectedRowIds(tableBodyId) {
+  const body = byId(tableBodyId);
+  if (!body) {
+    return [];
+  }
+
+  return Array.from(body.querySelectorAll("input[data-row-id]:checked"))
+    .map((input) => input.dataset.rowId)
+    .filter(Boolean);
+}
+
+function setAllRowsSelected(tableBodyId, selected) {
+  const body = byId(tableBodyId);
+  if (!body) {
+    return;
+  }
+
+  body.querySelectorAll("input[data-row-id]").forEach((input) => {
+    input.checked = Boolean(selected);
+  });
+}
+
+function safeConfirm(message) {
+  try {
+    return typeof globalThis.confirm === "function" ? globalThis.confirm(message) : true;
+  } catch (error) {
+    console.warn("Confirmation dialog not available in this browser context.", error);
+    return true;
+  }
+}
+
+function safePrompt(message, fallbackValue = "") {
+  try {
+    if (typeof globalThis.prompt === "function") {
+      return globalThis.prompt(message, fallbackValue);
+    }
+  } catch (error) {
+    console.warn("Prompt dialog not available in this browser context.", error);
+    return null;
+  }
+
+  return null;
+}
+
 function renderEmailLetterhead({
   toName,
   toCompany,
@@ -132,8 +176,12 @@ async function initDashboard() {
 
   const activityEl = byId("recentActivity");
   const limitSelect = byId("activityLimit");
+  const trimKeepLastInput = byId("trimKeepLast");
   const refreshBtn = byId("refreshActivityBtn");
   const trimBtn = byId("trimActivityBtn");
+  const selectAllBtn = byId("activitySelectAllBtn");
+  const clearSelectionBtn = byId("activityClearSelectionBtn");
+  const deleteSelectedBtn = byId("activityDeleteSelectedBtn");
 
   async function loadActivity() {
     const limit = Number(limitSelect?.value || 25);
@@ -142,6 +190,7 @@ async function initDashboard() {
     activityEl.innerHTML = rows
       .map((item) => {
         return `<tr>
+          <td><input type="checkbox" data-row-id="${item.id}" aria-label="Select activity row" /></td>
           <td>${new Date(item.createdAt).toLocaleString()}</td>
           <td>${escapeHtml(item.type || "-")}</td>
           <td>${escapeHtml(item.message || "")}</td>
@@ -166,9 +215,39 @@ async function initDashboard() {
     refreshBtn.addEventListener("click", loadActivity);
   }
 
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener("click", () => setAllRowsSelected("recentActivity", true));
+  }
+
+  if (clearSelectionBtn) {
+    clearSelectionBtn.addEventListener("click", () => setAllRowsSelected("recentActivity", false));
+  }
+
+  if (deleteSelectedBtn) {
+    deleteSelectedBtn.addEventListener("click", async () => {
+      const ids = getSelectedRowIds("recentActivity");
+
+      if (ids.length === 0) {
+        setNotice("dashboardNotice", "Select at least one activity row first.", "error");
+        return;
+      }
+
+      const confirmed = safeConfirm(`Delete ${ids.length} selected activity log(s)?`);
+      if (!confirmed) return;
+
+      try {
+        const result = await api.bulkDeleteActivity(ids);
+        setNotice("dashboardNotice", `Deleted ${result.removed} activity log(s).`);
+        await loadActivity();
+      } catch (error) {
+        setNotice("dashboardNotice", error.message, "error");
+      }
+    });
+  }
+
   if (trimBtn) {
     trimBtn.addEventListener("click", async () => {
-      const keepLast = Number(globalThis.prompt("Keep how many most recent logs?", "200"));
+      const keepLast = Number(trimKeepLastInput?.value || 200);
 
       if (!Number.isFinite(keepLast) || keepLast < 10) {
         setNotice("dashboardNotice", "Enter a valid number (10 or greater).", "error");
@@ -198,7 +277,7 @@ async function initDashboard() {
 
     try {
       if (action === "delete") {
-        const confirmed = globalThis.confirm("Delete this log entry?");
+        const confirmed = safeConfirm("Delete this log entry?");
         if (!confirmed) return;
         await api.deleteActivity(id);
         setNotice("dashboardNotice", "Log entry deleted.");
@@ -209,9 +288,9 @@ async function initDashboard() {
       if (action === "edit") {
         const currentType = button.closest("tr")?.children?.[1]?.textContent || "activity.updated";
         const currentMessage = button.closest("tr")?.children?.[2]?.textContent || "";
-        const nextType = globalThis.prompt("Edit log type:", currentType);
+        const nextType = safePrompt("Edit log type:", currentType);
         if (nextType === null) return;
-        const nextMessage = globalThis.prompt("Edit log message:", currentMessage);
+        const nextMessage = safePrompt("Edit log message:", currentMessage);
         if (nextMessage === null) return;
 
         await api.updateActivity(id, {
@@ -268,6 +347,7 @@ async function refreshProspects() {
   body.innerHTML = prospects
     .map((prospect) => {
       return `<tr>
+        <td><input type="checkbox" data-row-id="${prospect.id}" aria-label="Select prospect row" /></td>
         <td>${prospect.company}</td>
         <td>${prospect.firstName || ""} ${prospect.lastName || ""}<br><small>${prospect.title || ""}</small></td>
         <td>${prospect.email}</td>
@@ -282,6 +362,10 @@ async function refreshProspects() {
       </tr>`;
     })
     .join("");
+
+  if (globalThis.__prospectAllResultsSelected) {
+    setAllRowsSelected("prospectTableBody", true);
+  }
 }
 
 function nextStage(stage) {
@@ -295,6 +379,14 @@ async function initProspects() {
   const filterForm = byId("prospectFilterForm");
   const aiDraftForm = byId("aiDraftForm");
   const selectedProspectLabel = byId("selectedProspectLabel");
+  const selectAllBtn = byId("prospectSelectAllBtn");
+  const selectAllResultsBtn = byId("prospectSelectAllResultsBtn");
+  const clearSelectionBtn = byId("prospectClearSelectionBtn");
+  const deleteSelectedBtn = byId("prospectDeleteSelectedBtn");
+
+  if (globalThis.__prospectAllResultsSelected === undefined) {
+    globalThis.__prospectAllResultsSelected = false;
+  }
 
   function setSelectedProspect(prospect) {
     globalThis.__selectedProspect = prospect;
@@ -401,6 +493,106 @@ async function initProspects() {
     });
   }
 
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener("click", () => {
+      globalThis.__prospectAllResultsSelected = false;
+      setAllRowsSelected("prospectTableBody", true);
+      setNotice("prospectNotice", "Current page rows selected.");
+    });
+  }
+
+  if (selectAllResultsBtn) {
+    selectAllResultsBtn.addEventListener("click", () => {
+      globalThis.__prospectAllResultsSelected = true;
+      setAllRowsSelected("prospectTableBody", true);
+      setNotice("prospectNotice", "All filtered results selected across pages.");
+    });
+  }
+
+  if (clearSelectionBtn) {
+    clearSelectionBtn.addEventListener("click", () => {
+      globalThis.__prospectAllResultsSelected = false;
+      setAllRowsSelected("prospectTableBody", false);
+      setNotice("prospectNotice", "Selection cleared.");
+    });
+  }
+
+  if (deleteSelectedBtn) {
+    deleteSelectedBtn.addEventListener("click", async () => {
+      const state = globalThis.__prospectQueryState || {};
+      const query = {
+        search: state.search || "",
+        industry: state.industry || "",
+        country: state.country || "",
+        tier: state.tier || "",
+        stage: state.stage || "",
+        product: state.product || "",
+        minScore: state.minScore || "",
+        sortBy: state.sortBy || "score",
+        sortDir: state.sortDir || "desc"
+      };
+
+      if (globalThis.__prospectAllResultsSelected) {
+        const confirmed = safeConfirm("Delete all filtered prospects across all pages?");
+        if (!confirmed) return;
+
+        try {
+          const result = await api.bulkDeleteProspectsByQuery(query);
+          setNotice(
+            "prospectNotice",
+            `Deleted ${result.removed} prospect(s) from ${result.matched} filtered record(s).`
+          );
+          globalThis.__prospectAllResultsSelected = false;
+          globalThis.__prospectQueryState.page = 1;
+          setSelectedProspect(null);
+          await refreshProspects();
+        } catch (error) {
+          setNotice("prospectNotice", error.message, "error");
+        }
+
+        return;
+      }
+
+      const ids = getSelectedRowIds("prospectTableBody");
+
+      if (ids.length === 0) {
+        setNotice("prospectNotice", "Select at least one prospect first.", "error");
+        return;
+      }
+
+      const confirmed = safeConfirm(`Delete ${ids.length} selected prospect(s)?`);
+      if (!confirmed) return;
+
+      try {
+        const result = await api.bulkDeleteProspects(ids);
+        setNotice("prospectNotice", `Deleted ${result.removed} prospect(s).`);
+        globalThis.__prospectQueryState.page = 1;
+
+        if (
+          globalThis.__selectedProspect &&
+          ids.includes(globalThis.__selectedProspect.id)
+        ) {
+          setSelectedProspect(null);
+        }
+
+        await refreshProspects();
+      } catch (error) {
+        setNotice("prospectNotice", error.message, "error");
+      }
+    });
+  }
+
+  byId("prospectTableBody").addEventListener("change", (event) => {
+    const checkbox = event.target.closest("input[data-row-id]");
+    if (!checkbox) {
+      return;
+    }
+
+    if (!checkbox.checked) {
+      globalThis.__prospectAllResultsSelected = false;
+    }
+  });
+
   const exportBtn = byId("prospectExportCsv");
   if (exportBtn) {
     exportBtn.addEventListener("click", () => {
@@ -494,6 +686,7 @@ async function refreshCampaigns() {
   body.innerHTML = campaigns
     .map((campaign) => {
       return `<tr>
+        <td><input type="checkbox" data-row-id="${campaign.id}" aria-label="Select campaign row" /></td>
         <td>${campaign.name}</td>
         <td>${campaign.product}</td>
         <td>${campaign.targetIndustry || "Any"}</td>
@@ -505,14 +698,27 @@ async function refreshCampaigns() {
           <button class="small primary" data-action="send" data-id="${campaign.id}">Generate</button>
           <button class="small secondary" data-action="deliver" data-id="${campaign.id}">Send Now</button>
           <button class="small secondary" data-action="sequence" data-id="${campaign.id}">Launch Sequence</button>
+          <button class="small secondary" data-action="delete" data-id="${campaign.id}">Delete</button>
         </td>
       </tr>`;
     })
     .join("");
+
+  if (globalThis.__campaignAllResultsSelected) {
+    setAllRowsSelected("campaignTableBody", true);
+  }
 }
 
 async function initCampaigns() {
   const form = byId("campaignForm");
+  const selectAllBtn = byId("campaignSelectAllBtn");
+  const selectAllResultsBtn = byId("campaignSelectAllResultsBtn");
+  const clearSelectionBtn = byId("campaignClearSelectionBtn");
+  const deleteSelectedBtn = byId("campaignDeleteSelectedBtn");
+
+  if (globalThis.__campaignAllResultsSelected === undefined) {
+    globalThis.__campaignAllResultsSelected = false;
+  }
   await refreshCampaigns();
 
   form.addEventListener("submit", async (event) => {
@@ -571,9 +777,88 @@ async function initCampaigns() {
         setNotice("campaignNotice", `Sequence launched. Jobs created: ${result.jobsCreated}.`);
       }
 
+      if (button.dataset.action === "delete") {
+        const confirmed = safeConfirm("Delete this campaign?");
+        if (!confirmed) return;
+
+        await api.deleteCampaign(button.dataset.id);
+        setNotice("campaignNotice", "Campaign deleted.");
+      }
+
       await refreshCampaigns();
     } catch (error) {
       setNotice("campaignNotice", error.message, "error");
+    }
+  });
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener("click", () => {
+      globalThis.__campaignAllResultsSelected = false;
+      setAllRowsSelected("campaignTableBody", true);
+      setNotice("campaignNotice", "Current page campaigns selected.");
+    });
+  }
+
+  if (selectAllResultsBtn) {
+    selectAllResultsBtn.addEventListener("click", () => {
+      globalThis.__campaignAllResultsSelected = true;
+      setAllRowsSelected("campaignTableBody", true);
+      setNotice("campaignNotice", "All campaign results selected.");
+    });
+  }
+
+  if (clearSelectionBtn) {
+    clearSelectionBtn.addEventListener("click", () => {
+      globalThis.__campaignAllResultsSelected = false;
+      setAllRowsSelected("campaignTableBody", false);
+      setNotice("campaignNotice", "Selection cleared.");
+    });
+  }
+
+  if (deleteSelectedBtn) {
+    deleteSelectedBtn.addEventListener("click", async () => {
+      if (globalThis.__campaignAllResultsSelected) {
+        const confirmed = safeConfirm("Delete all campaign results?");
+        if (!confirmed) return;
+
+        try {
+          const result = await api.bulkDeleteCampaignsByQuery({});
+          setNotice("campaignNotice", `Deleted ${result.removed} campaign(s) from ${result.matched} result(s).`);
+          globalThis.__campaignAllResultsSelected = false;
+          await refreshCampaigns();
+        } catch (error) {
+          setNotice("campaignNotice", error.message, "error");
+        }
+
+        return;
+      }
+
+      const ids = getSelectedRowIds("campaignTableBody");
+
+      if (ids.length === 0) {
+        setNotice("campaignNotice", "Select at least one campaign first.", "error");
+        return;
+      }
+
+      const confirmed = safeConfirm(`Delete ${ids.length} selected campaign(s)?`);
+      if (!confirmed) return;
+
+      try {
+        const result = await api.bulkDeleteCampaigns(ids);
+        setNotice("campaignNotice", `Deleted ${result.removed} campaign(s).`);
+        await refreshCampaigns();
+      } catch (error) {
+        setNotice("campaignNotice", error.message, "error");
+      }
+    });
+  }
+
+  byId("campaignTableBody").addEventListener("change", (event) => {
+    const checkbox = event.target.closest("input[data-row-id]");
+    if (!checkbox) return;
+
+    if (!checkbox.checked) {
+      globalThis.__campaignAllResultsSelected = false;
     }
   });
 }
@@ -585,18 +870,34 @@ async function refreshInquiries() {
   body.innerHTML = inquiries
     .map((inquiry) => {
       return `<tr>
+        <td><input type="checkbox" data-row-id="${inquiry.id}" aria-label="Select inquiry row" /></td>
         <td>${inquiry.name}<br><small>${inquiry.company || ""}</small></td>
         <td>${inquiry.email}</td>
         <td>${inquiry.message}</td>
         <td><span class="tag ${inquiry.status}">${inquiry.status}</span></td>
-        <td><button class="small primary" data-id="${inquiry.id}">Auto Reply</button></td>
+        <td class="flex">
+          <button class="small primary" data-action="reply" data-id="${inquiry.id}">Auto Reply</button>
+          <button class="small secondary" data-action="delete" data-id="${inquiry.id}">Delete</button>
+        </td>
       </tr>`;
     })
     .join("");
+
+  if (globalThis.__inquiryAllResultsSelected) {
+    setAllRowsSelected("inquiryTableBody", true);
+  }
 }
 
 async function initInbox() {
   const form = byId("inquiryForm");
+  const selectAllBtn = byId("inquirySelectAllBtn");
+  const selectAllResultsBtn = byId("inquirySelectAllResultsBtn");
+  const clearSelectionBtn = byId("inquiryClearSelectionBtn");
+  const deleteSelectedBtn = byId("inquiryDeleteSelectedBtn");
+
+  if (globalThis.__inquiryAllResultsSelected === undefined) {
+    globalThis.__inquiryAllResultsSelected = false;
+  }
   await refreshInquiries();
 
   form.addEventListener("submit", async (event) => {
@@ -617,18 +918,100 @@ async function initInbox() {
     if (!button) return;
 
     try {
-      const result = await api.replyInquiry(button.dataset.id);
-      byId("replyOutput").innerHTML = renderEmailLetterhead({
-        toName: result?.inquiry?.name,
-        toCompany: result?.inquiry?.company,
-        toEmail: result?.inquiry?.email,
-        subject: "Follow-up on Your Inquiry",
-        body: result.reply
-      });
-      setNotice("inquiryNotice", "AI-generated follow-up drafted and attached to inquiry.");
+      if (button.dataset.action === "reply") {
+        const result = await api.replyInquiry(button.dataset.id);
+        byId("replyOutput").innerHTML = renderEmailLetterhead({
+          toName: result?.inquiry?.name,
+          toCompany: result?.inquiry?.company,
+          toEmail: result?.inquiry?.email,
+          subject: "Follow-up on Your Inquiry",
+          body: result.reply
+        });
+        setNotice("inquiryNotice", "AI-generated follow-up drafted and attached to inquiry.");
+      }
+
+      if (button.dataset.action === "delete") {
+        const confirmed = safeConfirm("Delete this inquiry?");
+        if (!confirmed) return;
+
+        await api.deleteInquiry(button.dataset.id);
+        setNotice("inquiryNotice", "Inquiry deleted.");
+      }
+
       await refreshInquiries();
     } catch (error) {
       setNotice("inquiryNotice", error.message, "error");
+    }
+  });
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener("click", () => {
+      globalThis.__inquiryAllResultsSelected = false;
+      setAllRowsSelected("inquiryTableBody", true);
+      setNotice("inquiryNotice", "Current page inquiries selected.");
+    });
+  }
+
+  if (selectAllResultsBtn) {
+    selectAllResultsBtn.addEventListener("click", () => {
+      globalThis.__inquiryAllResultsSelected = true;
+      setAllRowsSelected("inquiryTableBody", true);
+      setNotice("inquiryNotice", "All inquiry results selected.");
+    });
+  }
+
+  if (clearSelectionBtn) {
+    clearSelectionBtn.addEventListener("click", () => {
+      globalThis.__inquiryAllResultsSelected = false;
+      setAllRowsSelected("inquiryTableBody", false);
+      setNotice("inquiryNotice", "Selection cleared.");
+    });
+  }
+
+  if (deleteSelectedBtn) {
+    deleteSelectedBtn.addEventListener("click", async () => {
+      if (globalThis.__inquiryAllResultsSelected) {
+        const confirmed = safeConfirm("Delete all inquiry results?");
+        if (!confirmed) return;
+
+        try {
+          const result = await api.bulkDeleteInquiriesByQuery({});
+          setNotice("inquiryNotice", `Deleted ${result.removed} inquiry record(s) from ${result.matched} result(s).`);
+          globalThis.__inquiryAllResultsSelected = false;
+          await refreshInquiries();
+        } catch (error) {
+          setNotice("inquiryNotice", error.message, "error");
+        }
+
+        return;
+      }
+
+      const ids = getSelectedRowIds("inquiryTableBody");
+
+      if (ids.length === 0) {
+        setNotice("inquiryNotice", "Select at least one inquiry first.", "error");
+        return;
+      }
+
+      const confirmed = safeConfirm(`Delete ${ids.length} selected inquiry record(s)?`);
+      if (!confirmed) return;
+
+      try {
+        const result = await api.bulkDeleteInquiries(ids);
+        setNotice("inquiryNotice", `Deleted ${result.removed} inquiry record(s).`);
+        await refreshInquiries();
+      } catch (error) {
+        setNotice("inquiryNotice", error.message, "error");
+      }
+    });
+  }
+
+  byId("inquiryTableBody").addEventListener("change", (event) => {
+    const checkbox = event.target.closest("input[data-row-id]");
+    if (!checkbox) return;
+
+    if (!checkbox.checked) {
+      globalThis.__inquiryAllResultsSelected = false;
     }
   });
 }
@@ -640,11 +1023,17 @@ async function refreshProposals() {
   body.innerHTML = proposals
     .map((proposal) => {
       return `<tr>
+        <td><input type="checkbox" data-row-id="${proposal.id}" aria-label="Select proposal row" /></td>
         <td>${proposal.company}</td>
         <td>${proposal.productName}</td>
-        <td>${formatCurrency(proposal.total)}</td>
+        <td>${formatCurrency(proposal.total)} / month</td>
         <td><span class="tag draft">${proposal.status}</span></td>
-        <td><a href="${proposal.stripeCheckoutLink}" target="_blank" rel="noreferrer">Stripe Checkout</a></td>
+        <td>
+          <div class="flex">
+            <a href="${proposal.stripeCheckoutLink}" target="_blank" rel="noreferrer">Start Subscription</a>
+            <button class="small secondary" data-action="delete" data-id="${proposal.id}">Delete</button>
+          </div>
+        </td>
       </tr>`;
     })
     .join("");
@@ -654,6 +1043,9 @@ async function initProposals() {
   const products = await api.getProducts();
   const select = byId("proposalProductId");
   const form = byId("proposalForm");
+  const selectAllBtn = byId("proposalSelectAllBtn");
+  const clearSelectionBtn = byId("proposalClearSelectionBtn");
+  const deleteSelectedBtn = byId("proposalDeleteSelectedBtn");
 
   select.innerHTML = products
     .map((product) => `<option value="${product.id}">${product.name} (${formatCurrency(product.priceFrom)}+)</option>`)
@@ -667,7 +1059,7 @@ async function initProposals() {
   if (prefillBtn) {
     prefillBtn.addEventListener("click", () => {
       if (!deploymentStripeProduct) {
-        setNotice("proposalNotice", "Deployment & Stripe Automation Center product is not available.", "error");
+        setNotice("proposalNotice", "Deployment & Stripe Automation Center plan is not available.", "error");
         return;
       }
 
@@ -681,14 +1073,14 @@ async function initProposals() {
       const scopeField = form.querySelector("[name='scope']");
       if (scopeField && !scopeField.value) {
         scopeField.value = [
-          "1) Stripe product and pricing configuration",
-          "2) Checkout flow integration and success/cancel routing",
-          "3) Webhook processing for payment confirmation",
-          "4) Deployment hardening, environment setup, and post-launch validation"
+          "1. Monthly client usage access and account provisioning",
+          "2. Stripe subscription billing, invoices, and payment recovery",
+          "3. Ongoing support SLA and operational monitoring",
+          "4. Monthly optimization reviews and feature iteration"
         ].join("\n");
       }
 
-      setNotice("proposalNotice", "Deployment & Stripe Automation Center prefill applied.");
+      setNotice("proposalNotice", "Deployment & Stripe monthly plan prefill applied.");
     });
   }
 
@@ -701,27 +1093,84 @@ async function initProposals() {
       data.price = Number(data.price || 0);
       await api.createProposal(data);
       event.target.reset();
-      setNotice("proposalNotice", "Proposal generated with Stripe-ready checkout link.");
+      setNotice("proposalNotice", "Monthly subscription plan generated with Stripe checkout link.");
       await refreshProposals();
     } catch (error) {
       setNotice("proposalNotice", error.message, "error");
     }
   });
+
+  byId("proposalTableBody").addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+
+    try {
+      if (button.dataset.action === "delete") {
+        const confirmed = safeConfirm("Delete this proposal?");
+        if (!confirmed) return;
+
+        await api.deleteProposal(button.dataset.id);
+        setNotice("proposalNotice", "Subscription plan deleted.");
+        await refreshProposals();
+      }
+    } catch (error) {
+      setNotice("proposalNotice", error.message, "error");
+    }
+  });
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener("click", () => setAllRowsSelected("proposalTableBody", true));
+  }
+
+  if (clearSelectionBtn) {
+    clearSelectionBtn.addEventListener("click", () => setAllRowsSelected("proposalTableBody", false));
+  }
+
+  if (deleteSelectedBtn) {
+    deleteSelectedBtn.addEventListener("click", async () => {
+      const ids = getSelectedRowIds("proposalTableBody");
+
+      if (ids.length === 0) {
+        setNotice("proposalNotice", "Select at least one proposal first.", "error");
+        return;
+      }
+
+      const confirmed = safeConfirm(`Delete ${ids.length} selected proposal(s)?`);
+      if (!confirmed) return;
+
+      try {
+        const result = await api.bulkDeleteProposals(ids);
+        setNotice("proposalNotice", `Deleted ${result.removed} subscription plan(s).`);
+        await refreshProposals();
+      } catch (error) {
+        setNotice("proposalNotice", error.message, "error");
+      }
+    });
+  }
 }
 
 async function initScheduling() {
   const listBody = byId("demoTableBody");
+  const selectAllBtn = byId("demoSelectAllBtn");
+  const clearSelectionBtn = byId("demoClearSelectionBtn");
+  const deleteSelectedBtn = byId("demoDeleteSelectedBtn");
 
   async function refreshDemos() {
     const demos = await api.getDemos();
     listBody.innerHTML = demos
       .map((demo) => {
         return `<tr>
+          <td><input type="checkbox" data-row-id="${demo.id}" aria-label="Select demo row" /></td>
           <td>${demo.company}</td>
           <td>${demo.contact}</td>
           <td>${new Date(demo.dateTime).toLocaleString()}</td>
           <td>${demo.channel || "-"}</td>
-          <td><span class="tag scheduled">${demo.status}</span></td>
+          <td>
+            <div class="flex">
+              <span class="tag scheduled">${demo.status}</span>
+              <button class="small secondary" data-action="delete" data-id="${demo.id}">Delete</button>
+            </div>
+          </td>
         </tr>`;
       })
       .join("");
@@ -742,6 +1191,54 @@ async function initScheduling() {
       setNotice("demoNotice", error.message, "error");
     }
   });
+
+  listBody.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+
+    try {
+      if (button.dataset.action === "delete") {
+        const confirmed = safeConfirm("Delete this demo schedule?");
+        if (!confirmed) return;
+
+        await api.deleteDemo(button.dataset.id);
+        setNotice("demoNotice", "Demo deleted.");
+        await refreshDemos();
+      }
+    } catch (error) {
+      setNotice("demoNotice", error.message, "error");
+    }
+  });
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener("click", () => setAllRowsSelected("demoTableBody", true));
+  }
+
+  if (clearSelectionBtn) {
+    clearSelectionBtn.addEventListener("click", () => setAllRowsSelected("demoTableBody", false));
+  }
+
+  if (deleteSelectedBtn) {
+    deleteSelectedBtn.addEventListener("click", async () => {
+      const ids = getSelectedRowIds("demoTableBody");
+
+      if (ids.length === 0) {
+        setNotice("demoNotice", "Select at least one demo first.", "error");
+        return;
+      }
+
+      const confirmed = safeConfirm(`Delete ${ids.length} selected demo(s)?`);
+      if (!confirmed) return;
+
+      try {
+        const result = await api.bulkDeleteDemos(ids);
+        setNotice("demoNotice", `Deleted ${result.removed} demo(s).`);
+        await refreshDemos();
+      } catch (error) {
+        setNotice("demoNotice", error.message, "error");
+      }
+    });
+  }
 }
 
 async function initAnalytics() {
@@ -961,33 +1458,6 @@ async function initSettings() {
   async function refresh() {
     const status = await api.getSettingsEnv();
     output.textContent = JSON.stringify(status, null, 2);
-  }
-
-  async function submitForm(event) {
-    event.preventDefault();
-
-    const formData = Object.fromEntries(new FormData(event.target).entries());
-    const values = {};
-
-    for (const [key, value] of Object.entries(formData)) {
-      if (typeof value === "string" && value.trim() !== "") {
-        values[key] = value.trim();
-      }
-    }
-
-    try {
-      const result = await api.saveSettingsEnv(values);
-      setNotice("settingsNotice", `Saved settings. Updated keys: ${result.updated}.`);
-      await refresh();
-    } catch (error) {
-      setNotice("settingsNotice", error.message, "error");
-    }
-  }
-
-  byId("settingsFormStripe").addEventListener("submit", submitForm);
-  byId("settingsFormMail").addEventListener("submit", submitForm);
-  if (byId("settingsFormAi")) {
-    byId("settingsFormAi").addEventListener("submit", submitForm);
   }
 
   byId("refreshSettingsStatus").addEventListener("click", async () => {

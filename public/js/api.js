@@ -22,7 +22,6 @@ export const api = {
   getHealth: () => request("/api/health"),
   getConfig: () => request("/api/config"),
   getSettingsEnv: () => request("/api/settings/env"),
-  saveSettingsEnv: (values) => request("/api/settings/env", { method: "POST", body: JSON.stringify({ values }) }),
   getProducts: () => request("/api/products"),
 
   getProspects: () => request("/api/prospects"),
@@ -39,22 +38,37 @@ export const api = {
   createProspect: (data) => request("/api/prospects", { method: "POST", body: JSON.stringify(data) }),
   updateProspect: (id, data) => request(`/api/prospects/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteProspect: (id) => request(`/api/prospects/${id}`, { method: "DELETE" }),
+  bulkDeleteProspects: (ids) => request("/api/prospects/bulk-delete", { method: "POST", body: JSON.stringify({ ids }) }),
+  bulkDeleteProspectsByQuery: (query) =>
+    request("/api/prospects/bulk-delete-by-query", { method: "POST", body: JSON.stringify({ query }) }),
   generateAiEmailDraft: (data) => request("/api/ai/email-draft", { method: "POST", body: JSON.stringify(data) }),
 
   getCampaigns: () => request("/api/campaigns"),
   createCampaign: (data) => request("/api/campaigns", { method: "POST", body: JSON.stringify(data) }),
+  deleteCampaign: (id) => request(`/api/campaigns/${id}`, { method: "DELETE" }),
+  bulkDeleteCampaigns: (ids) => request("/api/campaigns/bulk-delete", { method: "POST", body: JSON.stringify({ ids }) }),
+  bulkDeleteCampaignsByQuery: (query) =>
+    request("/api/campaigns/bulk-delete-by-query", { method: "POST", body: JSON.stringify({ query }) }),
   sendCampaign: (id, data) => request(`/api/campaigns/${id}/send`, { method: "POST", body: JSON.stringify(data || {}) }),
   launchCampaignSequence: (id) => request(`/api/campaigns/${id}/launch-sequence`, { method: "POST" }),
 
   getInquiries: () => request("/api/inquiries"),
   createInquiry: (data) => request("/api/inquiries", { method: "POST", body: JSON.stringify(data) }),
+  deleteInquiry: (id) => request(`/api/inquiries/${id}`, { method: "DELETE" }),
+  bulkDeleteInquiries: (ids) => request("/api/inquiries/bulk-delete", { method: "POST", body: JSON.stringify({ ids }) }),
+  bulkDeleteInquiriesByQuery: (query) =>
+    request("/api/inquiries/bulk-delete-by-query", { method: "POST", body: JSON.stringify({ query }) }),
   replyInquiry: (id) => request(`/api/inquiries/${id}/reply`, { method: "POST" }),
 
   getProposals: () => request("/api/proposals"),
   createProposal: (data) => request("/api/proposals", { method: "POST", body: JSON.stringify(data) }),
+  deleteProposal: (id) => request(`/api/proposals/${id}`, { method: "DELETE" }),
+  bulkDeleteProposals: (ids) => request("/api/proposals/bulk-delete", { method: "POST", body: JSON.stringify({ ids }) }),
 
   getDemos: () => request("/api/demos"),
   createDemo: (data) => request("/api/demos", { method: "POST", body: JSON.stringify(data) }),
+  deleteDemo: (id) => request(`/api/demos/${id}`, { method: "DELETE" }),
+  bulkDeleteDemos: (ids) => request("/api/demos/bulk-delete", { method: "POST", body: JSON.stringify({ ids }) }),
 
   getAnalytics: (params) => {
     const query = new URLSearchParams(params || {}).toString();
@@ -66,6 +80,7 @@ export const api = {
   },
   updateActivity: (id, data) => request(`/api/activity/${id}`, { method: "PATCH", body: JSON.stringify(data || {}) }),
   deleteActivity: (id) => request(`/api/activity/${id}`, { method: "DELETE" }),
+  bulkDeleteActivity: (ids) => request("/api/activity/bulk-delete", { method: "POST", body: JSON.stringify({ ids }) }),
   pruneActivity: (keepLast) => request("/api/activity/prune", { method: "POST", body: JSON.stringify({ keepLast }) }),
   getIntegrationStatus: () => request("/api/integrations/status"),
   getEmailJobs: () => request("/api/email-jobs"),

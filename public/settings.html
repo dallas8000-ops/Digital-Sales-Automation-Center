@@ -17,7 +17,7 @@
           <li><a href="/prospects.html" data-page="prospects">Prospects & CRM</a></li>
           <li><a href="/campaigns.html" data-page="campaigns">Email Campaigns</a></li>
           <li><a href="/inbox.html" data-page="inbox">Inquiries & Replies</a></li>
-          <li><a href="/proposals.html" data-page="proposals">Proposals & Stripe</a></li>
+          <li><a href="/proposals.html" data-page="proposals">Client Subscriptions</a></li>
           <li><a href="/scheduling.html" data-page="scheduling">Demo Scheduling</a></li>
           <li><a href="/analytics.html" data-page="analytics">Analytics</a></li>
         </ul>
@@ -28,74 +28,19 @@
         <header class="topbar">
           <div>
             <h1 class="page-title">Integrations Settings</h1>
-            <div class="page-subtitle">Configure Stripe and SMTP from one place. Saved to local .env and applied at runtime.</div>
+            <div class="page-subtitle">Read-only integration health. Secrets are managed server-side only and are never editable from this UI.</div>
           </div>
         </header>
 
         <div id="settingsNotice"></div>
 
         <section class="grid cols-2">
-          <article class="card">
-            <h3>Stripe Configuration</h3>
-            <form id="settingsFormStripe">
-              <label>STRIPE_SECRET_KEY
-                <input name="STRIPE_SECRET_KEY" placeholder="sk_live_..." />
-              </label>
-              <label>STRIPE_PUBLISHABLE_KEY
-                <input name="STRIPE_PUBLISHABLE_KEY" placeholder="pk_live_..." />
-              </label>
-              <label>STRIPE_WEBHOOK_SECRET
-                <input name="STRIPE_WEBHOOK_SECRET" placeholder="whsec_..." />
-              </label>
-              <label>STRIPE_SUCCESS_URL
-                <input name="STRIPE_SUCCESS_URL" value="http://localhost:4000/proposals.html?payment=success" />
-              </label>
-              <label>STRIPE_CANCEL_URL
-                <input name="STRIPE_CANCEL_URL" value="http://localhost:4000/proposals.html?payment=cancel" />
-              </label>
-              <button class="primary" type="submit">Save Stripe Settings</button>
-            </form>
-          </article>
-
-          <article class="card">
-            <h3>SMTP Configuration</h3>
-            <form id="settingsFormMail">
-              <label>SMTP_HOST
-                <input name="SMTP_HOST" placeholder="smtp.yourprovider.com" />
-              </label>
-              <label>SMTP_PORT
-                <input name="SMTP_PORT" value="587" />
-              </label>
-              <label>SMTP_SECURE
-                <select name="SMTP_SECURE">
-                  <option value="false">false</option>
-                  <option value="true">true</option>
-                </select>
-              </label>
-              <label>SMTP_USER
-                <input name="SMTP_USER" placeholder="smtp-user" />
-              </label>
-              <label>SMTP_PASS
-                <input name="SMTP_PASS" placeholder="smtp-password" />
-              </label>
-              <label>SMTP_FROM
-                <input name="SMTP_FROM" value="Gilliom Frontline Digital <noreply@gilliomfrontlinedigital.com>" />
-              </label>
-              <button class="primary" type="submit">Save SMTP Settings</button>
-            </form>
-          </article>
-
-          <article class="card">
-            <h3>OpenAI Drafting Configuration</h3>
-            <form id="settingsFormAi">
-              <label>OPENAI_API_KEY
-                <input name="OPENAI_API_KEY" placeholder="sk-..." />
-              </label>
-              <label>OPENAI_MODEL
-                <input name="OPENAI_MODEL" value="gpt-4o-mini" />
-              </label>
-              <button class="primary" type="submit">Save OpenAI Settings</button>
-            </form>
+          <article class="card" style="grid-column: 1 / -1;">
+            <h3>Security Policy</h3>
+            <p class="metric-label" style="margin: 0;">
+              Runtime secret updates are disabled from the frontend. Configure secrets in your deployment platform
+              (Railway environment variables, local server env file, or host secret manager) instead.
+            </p>
           </article>
         </section>
 

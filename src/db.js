@@ -2,7 +2,19 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 
-const DB_PATH = path.join(__dirname, "..", "data", "db.json");
+function resolveDbPath() {
+  const configured = String(process.env.DATABASE_PATH || "").trim();
+
+  if (!configured) {
+    return path.join(__dirname, "..", "data", "db.json");
+  }
+
+  return path.isAbsolute(configured)
+    ? configured
+    : path.resolve(path.join(__dirname, ".."), configured);
+}
+
+const DB_PATH = resolveDbPath();
 
 const defaultDb = {
   prospects: [],
@@ -83,6 +95,11 @@ const defaultDb = {
 };
 
 function ensureDb() {
+  const parentDir = path.dirname(DB_PATH);
+  if (!fs.existsSync(parentDir)) {
+    fs.mkdirSync(parentDir, { recursive: true });
+  }
+
   if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(DB_PATH, JSON.stringify(defaultDb, null, 2), "utf8");
     return;

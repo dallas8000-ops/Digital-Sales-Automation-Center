@@ -20,7 +20,7 @@
           <li><a href="/prospects.html" data-page="prospects">Prospects & CRM</a></li>
           <li><a href="/campaigns.html" data-page="campaigns">Email Campaigns</a></li>
           <li><a href="/inbox.html" data-page="inbox">Inquiries & Replies</a></li>
-          <li><a href="/proposals.html" data-page="proposals">Proposals & Stripe</a></li>
+          <li><a href="/proposals.html" data-page="proposals">Client Subscriptions</a></li>
           <li><a href="/scheduling.html" data-page="scheduling">Demo Scheduling</a></li>
           <li><a href="/analytics.html" data-page="analytics">Analytics</a></li>
         </ul>
@@ -63,6 +63,9 @@
           <div class="flex" style="justify-content: space-between; align-items: end; margin-bottom: 8px;">
             <h3 style="margin: 0;">Recent Activity</h3>
             <div class="flex" style="align-items: center;">
+              <button class="secondary small" id="activitySelectAllBtn" type="button">Select All</button>
+              <button class="secondary small" id="activityClearSelectionBtn" type="button">Clear</button>
+              <button class="secondary small" id="activityDeleteSelectedBtn" type="button">Delete Selected</button>
               <label style="display: inline-grid; gap: 4px; margin: 0;">Rows
                 <select id="activityLimit" style="min-width: 84px;">
                   <option value="10">10</option>
@@ -81,6 +84,7 @@
           <table class="table">
             <thead>
               <tr>
+                <th>Select</th>
                 <th>Time</th>
                 <th>Type</th>
                 <th>Message</th>

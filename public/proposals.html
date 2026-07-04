@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Digital Sales Automation Center | Proposals</title>
+    <title>Digital Sales Automation Center | Client Subscriptions</title>
     <link rel="stylesheet" href="/css/app.css" />
   </head>
   <body data-page="proposals">
@@ -17,7 +17,7 @@
           <li><a href="/prospects.html" data-page="prospects">Prospects & CRM</a></li>
           <li><a href="/campaigns.html" data-page="campaigns">Email Campaigns</a></li>
           <li><a href="/inbox.html" data-page="inbox">Inquiries & Replies</a></li>
-          <li><a href="/proposals.html" data-page="proposals">Proposals & Stripe</a></li>
+          <li><a href="/proposals.html" data-page="proposals">Client Subscriptions</a></li>
           <li><a href="/scheduling.html" data-page="scheduling">Demo Scheduling</a></li>
           <li><a href="/analytics.html" data-page="analytics">Analytics</a></li>
         </ul>
@@ -27,15 +27,15 @@
         <div id="globalError"></div>
         <header class="topbar">
           <div>
-            <h1 class="page-title">Proposal Generator & Stripe Links</h1>
-            <div class="page-subtitle">Create client proposals and attach payment-ready checkout links.</div>
+            <h1 class="page-title">Client Subscription Plans & Stripe</h1>
+            <div class="page-subtitle">Set up monthly client usage plans with subscription checkout links.</div>
           </div>
         </header>
 
         <div id="proposalNotice"></div>
 
         <section class="card">
-          <h3>Create Proposal</h3>
+          <h3>Create Monthly Plan</h3>
           <div class="flex" style="margin-bottom: 10px;">
             <button id="prefillDeploymentStripeBtn" type="button" class="secondary">Use Deployment & Stripe Automation Center</button>
           </div>
@@ -45,22 +45,28 @@
             <label>Product
               <select id="proposalProductId" name="productId" required></select>
             </label>
-            <label>Price Override (optional) <input type="number" min="0" name="price" /></label>
-            <label style="grid-column:1 / -1;">Scope <textarea name="scope" placeholder="Implementation scope and milestones"></textarea></label>
-            <div><button class="primary" type="submit">Generate Proposal</button></div>
+            <label>Monthly Fee Override (optional) <input type="number" min="0" name="price" /></label>
+            <label style="grid-column:1 / -1;">Service Scope <textarea name="scope" placeholder="Monthly usage access, support SLA, and service terms"></textarea></label>
+            <div><button class="primary" type="submit">Generate Subscription Plan</button></div>
           </form>
         </section>
 
         <section class="card" style="margin-top: 16px;">
-          <h3>Proposal Pipeline</h3>
+          <h3>Subscription Pipeline</h3>
+          <div class="flex" style="margin-bottom: 10px;">
+            <button class="small secondary" id="proposalSelectAllBtn" type="button">Select All</button>
+            <button class="small secondary" id="proposalClearSelectionBtn" type="button">Clear</button>
+            <button class="small secondary" id="proposalDeleteSelectedBtn" type="button">Delete Selected</button>
+          </div>
           <table class="table">
             <thead>
               <tr>
+                <th>Select</th>
                 <th>Company</th>
                 <th>Product</th>
-                <th>Total</th>
+                <th>Monthly Fee</th>
                 <th>Status</th>
-                <th>Checkout</th>
+                <th>Subscription</th>
               </tr>
             </thead>
             <tbody id="proposalTableBody"></tbody>
