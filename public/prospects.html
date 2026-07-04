@@ -1,0 +1,160 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Sales Automation Center | Prospects</title>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body data-page="prospects">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">Digital Sales Automation Center<small id="companyLabel">Gilliom Frontline Digital</small></div>
+        <ul class="nav-list">
+          <li><a href="/" data-page="dashboard">Dashboard</a></li>
+          <li><a href="/automation.html" data-page="automation">Automation Workspace</a></li>
+          <li><a href="/settings.html" data-page="settings">Integrations Settings</a></li>
+          <li><a href="/prospects.html" data-page="prospects">Prospects & CRM</a></li>
+          <li><a href="/campaigns.html" data-page="campaigns">Email Campaigns</a></li>
+          <li><a href="/inbox.html" data-page="inbox">Inquiries & Replies</a></li>
+          <li><a href="/proposals.html" data-page="proposals">Proposals & Stripe</a></li>
+          <li><a href="/scheduling.html" data-page="scheduling">Demo Scheduling</a></li>
+          <li><a href="/analytics.html" data-page="analytics">Analytics</a></li>
+        </ul>
+      </aside>
+
+      <main class="main">
+        <div id="globalError"></div>
+        <header class="topbar">
+          <div>
+            <h1 class="page-title">Prospects & CRM</h1>
+            <div class="page-subtitle">Company discovery, lead scoring, and stage progression.</div>
+          </div>
+        </header>
+
+        <div id="prospectNotice"></div>
+
+        <section class="card">
+          <h3>Add Prospect</h3>
+          <form id="prospectForm" class="grid cols-3">
+            <label>Company <input name="company" required /></label>
+            <label>Email <input type="email" name="email" required /></label>
+            <label>Industry <input name="industry" placeholder="SaaS, FinTech, Logistics" /></label>
+            <label>First Name <input name="firstName" /></label>
+            <label>Last Name <input name="lastName" /></label>
+            <label>Title <input name="title" placeholder="CTO" /></label>
+            <label>Tech Stack <input name="techStack" placeholder="Stripe, PostgreSQL, AWS" /></label>
+            <label>Country <input name="country" /></label>
+            <label>Engagement Level (0-20) <input type="number" min="0" max="20" name="engagementLevel" value="0" /></label>
+            <div><button class="primary" type="submit">Create Prospect</button></div>
+          </form>
+        </section>
+
+        <section class="card" style="margin-top:16px;">
+          <h3>CRM Pipeline</h3>
+          <form id="prospectFilterForm" class="grid cols-3" style="margin-bottom: 12px;">
+            <label>Search
+              <input name="search" placeholder="Company, email, title, product" />
+            </label>
+            <label>Industry
+              <input name="industry" placeholder="FinTech" />
+            </label>
+            <label>Country
+              <input name="country" placeholder="Uganda" />
+            </label>
+            <label>Tier
+              <select name="tier">
+                <option value="">Any</option>
+                <option value="Hot">Hot</option>
+                <option value="Warm">Warm</option>
+                <option value="Cold">Cold</option>
+              </select>
+            </label>
+            <label>Stage
+              <select name="stage">
+                <option value="">Any</option>
+                <option value="lead">lead</option>
+                <option value="contacted">contacted</option>
+                <option value="qualified">qualified</option>
+                <option value="proposal">proposal</option>
+                <option value="negotiation">negotiation</option>
+                <option value="won">won</option>
+              </select>
+            </label>
+            <label>Recommended Product
+              <input name="product" placeholder="Elite Fintech Systems" />
+            </label>
+            <label>Min Score
+              <input type="number" name="minScore" min="0" max="100" />
+            </label>
+            <label>Sort By
+              <select name="sortBy">
+                <option value="score">Score</option>
+                <option value="createdAt">Created Date</option>
+                <option value="company">Company</option>
+              </select>
+            </label>
+            <label>Sort Direction
+              <select name="sortDir">
+                <option value="desc">Descending</option>
+                <option value="asc">Ascending</option>
+              </select>
+            </label>
+            <div class="flex" style="align-items: end;">
+              <button class="primary" type="submit">Apply Filters</button>
+              <button class="secondary" id="prospectResetFilters" type="button">Reset</button>
+              <button class="secondary" id="prospectExportCsv" type="button">Export CSV</button>
+            </div>
+          </form>
+          <div class="flex" style="justify-content: space-between; margin: 6px 0 12px;">
+            <div id="prospectResultMeta" class="metric-label">Showing 0 results</div>
+            <div class="flex">
+              <button class="small secondary" id="prospectPrevPage" type="button">Prev</button>
+              <button class="small secondary" id="prospectNextPage" type="button">Next</button>
+            </div>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Company</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Industry</th>
+                <th>Recommended Product</th>
+                <th>Score</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="prospectTableBody"></tbody>
+          </table>
+        </section>
+
+        <section class="card" style="margin-top:16px;">
+          <h3>AI Outreach Draft For Selected Company</h3>
+          <div class="metric-label" id="selectedProspectLabel">No prospect selected. Click Select on a row below.</div>
+          <form id="aiDraftForm" class="grid cols-2" style="margin-top: 10px;">
+            <label>Target Job Position
+              <input name="jobTitle" placeholder="CTO, VP Engineering, Director of Engineering" required />
+            </label>
+            <label>Tone
+              <select name="tone">
+                <option value="professional">professional</option>
+                <option value="consultative">consultative</option>
+                <option value="executive">executive</option>
+              </select>
+            </label>
+            <label style="grid-column: 1 / -1;">Resume Summary
+              <textarea name="resumeSummary" placeholder="Paste your resume summary, achievements, and relevant experience here." required></textarea>
+            </label>
+            <div><button class="primary" type="submit">Generate AI Email Draft</button></div>
+          </form>
+          <pre id="aiDraftOutput">Draft output will appear here.</pre>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>
+
+
+

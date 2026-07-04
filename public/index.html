@@ -1,0 +1,100 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Sales Automation Center | Dashboard</title>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body data-page="dashboard">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          Digital Sales Automation Center
+          <small id="companyLabel">Gilliom Frontline Digital</small>
+        </div>
+        <ul class="nav-list">
+          <li><a href="/" data-page="dashboard">Dashboard</a></li>
+          <li><a href="/automation.html" data-page="automation">Automation Workspace</a></li>
+          <li><a href="/settings.html" data-page="settings">Integrations Settings</a></li>
+          <li><a href="/prospects.html" data-page="prospects">Prospects & CRM</a></li>
+          <li><a href="/campaigns.html" data-page="campaigns">Email Campaigns</a></li>
+          <li><a href="/inbox.html" data-page="inbox">Inquiries & Replies</a></li>
+          <li><a href="/proposals.html" data-page="proposals">Proposals & Stripe</a></li>
+          <li><a href="/scheduling.html" data-page="scheduling">Demo Scheduling</a></li>
+          <li><a href="/analytics.html" data-page="analytics">Analytics</a></li>
+        </ul>
+        <div class="cta">
+          Independent freelancer workspace for AI discovery, scoring, outreach, and conversion.
+        </div>
+      </aside>
+
+      <main class="main">
+        <div id="globalError"></div>
+        <div id="dashboardNotice"></div>
+        <header class="topbar">
+          <div>
+            <h1 class="page-title">Freelancer Dashboard</h1>
+            <div class="page-subtitle">Live pipeline view across your client work.</div>
+          </div>
+          <div class="badge">Automation Active</div>
+        </header>
+
+        <section class="grid cols-2">
+          <article class="card">
+            <div class="metric-label">Total Prospects</div>
+            <div id="metricProspects" class="metric-value">-</div>
+          </article>
+          <article class="card">
+            <div class="metric-label">Campaign Emails Sent</div>
+            <div id="metricEmails" class="metric-value">-</div>
+          </article>
+          <article class="card">
+            <div class="metric-label">Meetings Booked</div>
+            <div id="metricMeetings" class="metric-value">-</div>
+          </article>
+          <article class="card">
+            <div class="metric-label">Pipeline Value</div>
+            <div id="metricPipeline" class="metric-value">-</div>
+          </article>
+        </section>
+
+        <section class="card" style="margin-top: 16px;">
+          <div class="flex" style="justify-content: space-between; align-items: end; margin-bottom: 8px;">
+            <h3 style="margin: 0;">Recent Activity</h3>
+            <div class="flex" style="align-items: center;">
+              <label style="display: inline-grid; gap: 4px; margin: 0;">Rows
+                <select id="activityLimit" style="min-width: 84px;">
+                  <option value="10">10</option>
+                  <option value="25" selected>25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+              <label style="display: inline-grid; gap: 4px; margin: 0;">Keep Last
+                <input id="trimKeepLast" type="number" min="10" value="200" style="width: 90px;" />
+              </label>
+              <button class="secondary small" id="refreshActivityBtn" type="button">Refresh</button>
+              <button class="secondary small" id="trimActivityBtn" type="button">Trim Logs</button>
+            </div>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Message</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="recentActivity"></tbody>
+          </table>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>
+
+

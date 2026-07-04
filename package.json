@@ -1,0 +1,22 @@
+{
+  "name": "digital-sales-automation-center",
+  "version": "1.0.0",
+  "description": "Premier sales automation platform for AI-powered prospecting, campaigns, CRM, and proposal workflows",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "seed": "node scripts/seed.js",
+    "process:email-jobs": "node scripts/process-email-jobs.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "nodemailer": "^6.10.1",
+    "stripe": "^17.4.0"
+  }
+}

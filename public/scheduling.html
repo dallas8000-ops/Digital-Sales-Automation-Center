@@ -1,0 +1,70 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Sales Automation Center | Scheduling</title>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body data-page="scheduling">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">Digital Sales Automation Center<small id="companyLabel">Gilliom Frontline Digital</small></div>
+        <ul class="nav-list">
+          <li><a href="/" data-page="dashboard">Dashboard</a></li>
+          <li><a href="/automation.html" data-page="automation">Automation Workspace</a></li>
+          <li><a href="/settings.html" data-page="settings">Integrations Settings</a></li>
+          <li><a href="/prospects.html" data-page="prospects">Prospects & CRM</a></li>
+          <li><a href="/campaigns.html" data-page="campaigns">Email Campaigns</a></li>
+          <li><a href="/inbox.html" data-page="inbox">Inquiries & Replies</a></li>
+          <li><a href="/proposals.html" data-page="proposals">Proposals & Stripe</a></li>
+          <li><a href="/scheduling.html" data-page="scheduling">Demo Scheduling</a></li>
+          <li><a href="/analytics.html" data-page="analytics">Analytics</a></li>
+        </ul>
+      </aside>
+
+      <main class="main">
+        <div id="globalError"></div>
+        <header class="topbar">
+          <div>
+            <h1 class="page-title">Demo Scheduling</h1>
+            <div class="page-subtitle">Book demos and track customer touchpoints across the funnel.</div>
+          </div>
+        </header>
+
+        <div id="demoNotice"></div>
+
+        <section class="card">
+          <h3>Schedule Demo</h3>
+          <form id="demoForm" class="grid cols-2">
+            <label>Company <input name="company" required /></label>
+            <label>Contact <input name="contact" required /></label>
+            <label>Date & Time <input type="datetime-local" name="dateTime" required /></label>
+            <label>Channel <input name="channel" placeholder="Google Meet, Zoom, Phone" /></label>
+            <div><button class="primary" type="submit">Schedule</button></div>
+          </form>
+        </section>
+
+        <section class="card" style="margin-top:16px;">
+          <h3>Upcoming Demos</h3>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Company</th>
+                <th>Contact</th>
+                <th>Date</th>
+                <th>Channel</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="demoTableBody"></tbody>
+          </table>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>
+
+
+

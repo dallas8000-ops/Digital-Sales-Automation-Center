@@ -1,0 +1,57 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Sales Automation Center | Analytics</title>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body data-page="analytics">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">Digital Sales Automation Center<small id="companyLabel">Gilliom Frontline Digital</small></div>
+        <ul class="nav-list">
+          <li><a href="/" data-page="dashboard">Dashboard</a></li>
+          <li><a href="/automation.html" data-page="automation">Automation Workspace</a></li>
+          <li><a href="/settings.html" data-page="settings">Integrations Settings</a></li>
+          <li><a href="/prospects.html" data-page="prospects">Prospects & CRM</a></li>
+          <li><a href="/campaigns.html" data-page="campaigns">Email Campaigns</a></li>
+          <li><a href="/inbox.html" data-page="inbox">Inquiries & Replies</a></li>
+          <li><a href="/proposals.html" data-page="proposals">Proposals & Stripe</a></li>
+          <li><a href="/scheduling.html" data-page="scheduling">Demo Scheduling</a></li>
+          <li><a href="/analytics.html" data-page="analytics">Analytics</a></li>
+        </ul>
+      </aside>
+
+      <main class="main">
+        <div id="globalError"></div>
+        <header class="topbar">
+          <div>
+            <h1 class="page-title">Revenue & Funnel Analytics</h1>
+            <div class="page-subtitle">Monitor conversion health, pipeline performance, and automation impact.</div>
+          </div>
+        </header>
+
+        <section id="analyticsGrid" class="grid cols-3"></section>
+
+        <section class="card" style="margin-top:16px;">
+          <h3>Recent Operational Events</h3>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Event</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="activityBody"></tbody>
+          </table>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>
+
+
+
