@@ -3,3 +3,21 @@ node_modules/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Local automation artifacts from external tooling (do not commit to app repo)
+.stripe-installer/
+deploy.config.json
+stripe.config.json
+railway.toml
+Dockerfile
+db/
+deploy/
+docs/STRIPE-EXPRESS.md
+public/account.html
+public/pricing.html
+public/success.html
+scripts/backup-db.ps1
+scripts/backup-db.sh
+src/lib/
+src/routes/
+.env.production.example
