@@ -1,36 +1,414 @@
 {
-  "prospects": [],
+  "prospects": [
+    {
+      "id": "f5405bf7-4506-4d09-99ed-290e0da2abaa",
+      "createdAt": "2026-07-05T06:03:00.279Z",
+      "updatedAt": "2026-07-05T06:03:00.279Z",
+      "company": "Vertex Cloud",
+      "firstName": "Jordan",
+      "lastName": "Rodriguez",
+      "title": "CTO",
+      "email": "jordan.rodriguez@vertex-cloud.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 11,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "1e537b45-0014-4879-9547-b1bb5e00ee03",
+      "createdAt": "2026-07-05T06:03:00.317Z",
+      "updatedAt": "2026-07-05T06:03:00.317Z",
+      "company": "Apex Systems",
+      "firstName": "Reese",
+      "lastName": "Wright",
+      "title": "Director of Engineering",
+      "email": "reese.wright@apex-systems.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 10,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "9bfaed0a-1106-422d-bc85-b1bdef21742a",
+      "createdAt": "2026-07-05T06:03:00.356Z",
+      "updatedAt": "2026-07-05T06:03:00.356Z",
+      "company": "Brightpath Works",
+      "firstName": "Morgan",
+      "lastName": "Brooks",
+      "title": "Platform Engineering Lead",
+      "email": "morgan.brooks@brightpath-works.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 18,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "33f1763f-7117-4300-a7af-ce98e72c6427",
+      "createdAt": "2026-07-05T06:03:00.400Z",
+      "updatedAt": "2026-07-05T06:03:00.400Z",
+      "company": "Apex Systems",
+      "firstName": "Reese",
+      "lastName": "Wright",
+      "title": "Platform Engineering Lead",
+      "email": "reese.wright@apex-systems.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 15,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "8a0022ef-a26c-414b-8d23-d58afa1d3657",
+      "createdAt": "2026-07-05T06:03:00.440Z",
+      "updatedAt": "2026-07-05T06:03:00.440Z",
+      "company": "Prime Technologies",
+      "firstName": "Moses",
+      "lastName": "Johnson",
+      "title": "CTO",
+      "email": "moses.johnson@prime-technologies.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 14,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "4feaccf8-c54f-4df9-adb5-8251a5592372",
+      "createdAt": "2026-07-05T06:03:00.482Z",
+      "updatedAt": "2026-07-05T06:03:00.482Z",
+      "company": "Prime Technologies",
+      "firstName": "Moses",
+      "lastName": "Johnson",
+      "title": "Platform Engineering Lead",
+      "email": "moses.johnson@prime-technologies.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 9,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "30a41bd5-807d-4b9f-b9c2-b22c888fd13b",
+      "createdAt": "2026-07-05T06:03:00.530Z",
+      "updatedAt": "2026-07-05T06:03:00.530Z",
+      "company": "Prime Technologies",
+      "firstName": "Moses",
+      "lastName": "Johnson",
+      "title": "Technical Founder",
+      "email": "moses.johnson@prime-technologies.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 14,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "6ab8a2b9-67cb-4dff-8013-9ef4c3bdd2a9",
+      "createdAt": "2026-07-05T06:03:00.573Z",
+      "updatedAt": "2026-07-05T06:03:00.573Z",
+      "company": "Atlas Solutions",
+      "firstName": "Taylor",
+      "lastName": "Mensah",
+      "title": "CTO",
+      "email": "taylor.mensah@atlas-solutions.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 12,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "633528cb-6117-4d17-afd1-adaa8520d1cc",
+      "createdAt": "2026-07-05T06:03:00.619Z",
+      "updatedAt": "2026-07-05T06:03:00.619Z",
+      "company": "Northstar Labs",
+      "firstName": "Kai",
+      "lastName": "Njoroge",
+      "title": "Director of Engineering",
+      "email": "kai.njoroge@northstar-labs.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 11,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "b1ff246c-104b-49aa-b76d-2bd12bd5bc2d",
+      "createdAt": "2026-07-05T06:03:00.663Z",
+      "updatedAt": "2026-07-05T06:03:00.663Z",
+      "company": "Apex Systems",
+      "firstName": "Reese",
+      "lastName": "Wright",
+      "title": "Director of Engineering",
+      "email": "reese.wright@apex-systems.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 15,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "c107ca02-6fbb-45be-860a-6de472082743",
+      "createdAt": "2026-07-05T06:03:00.713Z",
+      "updatedAt": "2026-07-05T06:03:00.713Z",
+      "company": "Prime Technologies",
+      "firstName": "Moses",
+      "lastName": "Johnson",
+      "title": "DevOps Manager",
+      "email": "moses.johnson@prime-technologies.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 14,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "0207c0cc-0a49-438b-b1c9-5bf448579bc7",
+      "createdAt": "2026-07-05T06:03:00.754Z",
+      "updatedAt": "2026-07-05T06:03:00.754Z",
+      "company": "Prime Technologies",
+      "firstName": "Moses",
+      "lastName": "Johnson",
+      "title": "Platform Engineering Lead",
+      "email": "moses.johnson@prime-technologies.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 19,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "10b010f0-29bb-4093-9be2-63bc539248d5",
+      "createdAt": "2026-07-05T06:03:00.796Z",
+      "updatedAt": "2026-07-05T06:03:00.796Z",
+      "company": "Velocity Networks",
+      "firstName": "Sofia",
+      "lastName": "Owens",
+      "title": "DevOps Manager",
+      "email": "sofia.owens@velocity-networks.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 15,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "07a4faf1-cb3b-4b19-b9be-635b84d5ad1a",
+      "createdAt": "2026-07-05T06:03:00.838Z",
+      "updatedAt": "2026-07-05T06:03:00.838Z",
+      "company": "Kijani Platforms",
+      "firstName": "Avery",
+      "lastName": "Walker",
+      "title": "Technical Founder",
+      "email": "avery.walker@kijani-platforms.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 14,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "444db6f6-af14-4cda-ac79-11a34d6b157d",
+      "createdAt": "2026-07-05T06:03:00.881Z",
+      "updatedAt": "2026-07-05T06:03:00.881Z",
+      "company": "Northstar Labs",
+      "firstName": "Kai",
+      "lastName": "Njoroge",
+      "title": "Technical Founder",
+      "email": "kai.njoroge@northstar-labs.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 11,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "87600f4d-cfb2-44d1-b09b-a556816f424d",
+      "createdAt": "2026-07-05T06:03:00.925Z",
+      "updatedAt": "2026-07-05T06:03:00.925Z",
+      "company": "Atlas Solutions",
+      "firstName": "Taylor",
+      "lastName": "Mensah",
+      "title": "Engineering Manager",
+      "email": "taylor.mensah@atlas-solutions.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 12,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "56eb60f1-cdba-4f46-816c-12b636a150b0",
+      "createdAt": "2026-07-05T06:03:00.967Z",
+      "updatedAt": "2026-07-05T06:03:00.967Z",
+      "company": "Northstar Labs",
+      "firstName": "Kai",
+      "lastName": "Njoroge",
+      "title": "Platform Engineering Lead",
+      "email": "kai.njoroge@northstar-labs.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 11,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "dc7bc774-e268-4acf-b1b1-cb298c6b15b2",
+      "createdAt": "2026-07-05T06:03:01.006Z",
+      "updatedAt": "2026-07-05T06:03:01.006Z",
+      "company": "Prime Technologies",
+      "firstName": "Moses",
+      "lastName": "Johnson",
+      "title": "Technical Founder",
+      "email": "moses.johnson@prime-technologies.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 9,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "6dad99c9-3665-4fec-b0ae-183818c703b5",
+      "createdAt": "2026-07-05T06:03:01.046Z",
+      "updatedAt": "2026-07-05T06:03:01.046Z",
+      "company": "Summit Software",
+      "firstName": "Parker",
+      "lastName": "Patel",
+      "title": "Director of Engineering",
+      "email": "parker.patel@summit-software.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 17,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    },
+    {
+      "id": "93eae5c1-317c-43ac-bb2f-46aa4c8ecbce",
+      "createdAt": "2026-07-05T06:03:01.086Z",
+      "updatedAt": "2026-07-05T06:03:01.086Z",
+      "company": "Atlas Solutions",
+      "firstName": "Taylor",
+      "lastName": "Mensah",
+      "title": "Platform Engineering Lead",
+      "email": "taylor.mensah@atlas-solutions.com",
+      "industry": "Saas",
+      "country": "europe",
+      "techStack": "Node.js, PostgreSQL, AWS, Stripe",
+      "engagementLevel": 17,
+      "status": "active",
+      "stage": "lead",
+      "recommendedProduct": "AI Software Operations Studio",
+      "source": "ai-discovery"
+    }
+  ],
   "campaigns": [],
   "inquiries": [],
   "activities": [
     {
-      "id": "64860d0d-00e9-4543-85ae-3d3aaf917b10",
-      "createdAt": "2026-07-04T06:12:20.136Z",
-      "updatedAt": "2026-07-04T06:12:20.136Z",
-      "type": "prospect.bulk_deleted",
-      "message": "Bulk delete executed for filtered prospects",
+      "id": "8cf1265e-d4a7-4bae-9eaa-0bf1f96dee65",
+      "createdAt": "2026-07-05T06:03:01.123Z",
+      "updatedAt": "2026-07-05T06:03:01.123Z",
+      "type": "prospect.bulk_generated",
+      "message": "Bulk prospect generation completed: 20",
       "metadata": {
-        "matched": 4852,
-        "requested": 4852,
-        "removed": 4852,
-        "remaining": 0
+        "count": 20,
+        "industry": "Saas",
+        "country": "europe"
       }
     },
     {
-      "id": "d7b4c9bf-ef1a-4f49-87df-19bdcb524d3b",
-      "createdAt": "2026-07-04T06:14:41.990Z",
-      "updatedAt": "2026-07-04T06:14:41.990Z",
-      "type": "inquiry.deleted",
-      "message": "Inquiry deleted: 0f86216b-4288-4bfa-8fd5-d179779f7fd8",
-      "metadata": {}
+      "id": "50e64f45-0dd8-475d-83ee-9beee4b0662e",
+      "createdAt": "2026-07-05T06:03:46.291Z",
+      "updatedAt": "2026-07-05T06:03:46.291Z",
+      "type": "discovery.run",
+      "message": "Company discovery generated 20 targets",
+      "metadata": {
+        "count": 20,
+        "industry": "Saas"
+      }
     },
     {
-      "id": "83d895c0-531c-4f1a-8215-aa8ce04df526",
-      "createdAt": "2026-07-04T06:14:45.912Z",
-      "updatedAt": "2026-07-04T06:14:45.912Z",
-      "type": "inquiry.deleted",
-      "message": "Inquiry deleted: 3c0ccafd-e854-4c76-93fd-13bd096fe7aa",
-      "metadata": {}
+      "id": "347ec7da-2709-44a6-b343-ec7a4257e432",
+      "createdAt": "2026-07-05T06:30:48.509Z",
+      "updatedAt": "2026-07-05T06:30:48.509Z",
+      "type": "ai.automation.cycle",
+      "message": "AI automation cycle executed (daily)",
+      "metadata": {
+        "topProspectsEvaluated": 20,
+        "outreachQueued": 20,
+        "followUpsQueued": 0
+      }
+    },
+    {
+      "id": "0be90d60-c9ca-4638-90f3-ddf17a627555",
+      "createdAt": "2026-07-05T06:30:49.016Z",
+      "updatedAt": "2026-07-05T06:30:49.016Z",
+      "type": "email.jobs.autoprocessed",
+      "message": "Auto-processed 20 email jobs",
+      "metadata": {
+        "sent": 20,
+        "failed": 0
+      }
     }
   ],
   "emailJobs": [
@@ -756,6 +1134,586 @@
           "avery.walker@kijani-platforms.com"
         ],
         "messageId": "mock-1783144772091",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-20037",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "6dad99c9-3665-4fec-b0ae-183818c703b5",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Summit Software",
+      "body": "Dear Parker Patel,\n\nI am reaching out regarding the CTO opportunity at Summit Software.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Director of Engineering priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "parker.patel@summit-software.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-70991",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "b1ff246c-104b-49aa-b76d-2bd12bd5bc2d",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Apex Systems",
+      "body": "Dear Reese Wright,\n\nI am reaching out regarding the CTO opportunity at Apex Systems.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Director of Engineering priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "reese.wright@apex-systems.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-33347",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "8a0022ef-a26c-414b-8d23-d58afa1d3657",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Prime Technologies",
+      "body": "Dear Moses Johnson,\n\nI am reaching out regarding the CTO opportunity at Prime Technologies.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your CTO priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "moses.johnson@prime-technologies.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-66622",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "30a41bd5-807d-4b9f-b9c2-b22c888fd13b",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Prime Technologies",
+      "body": "Dear Moses Johnson,\n\nI am reaching out regarding the CTO opportunity at Prime Technologies.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Technical Founder priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "moses.johnson@prime-technologies.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-23414",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "07a4faf1-cb3b-4b19-b9be-635b84d5ad1a",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Kijani Platforms",
+      "body": "Dear Avery Walker,\n\nI am reaching out regarding the CTO opportunity at Kijani Platforms.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Technical Founder priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "avery.walker@kijani-platforms.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-74029",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "6ab8a2b9-67cb-4dff-8013-9ef4c3bdd2a9",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Atlas Solutions",
+      "body": "Dear Taylor Mensah,\n\nI am reaching out regarding the CTO opportunity at Atlas Solutions.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your CTO priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "taylor.mensah@atlas-solutions.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-79107",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "f5405bf7-4506-4d09-99ed-290e0da2abaa",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Vertex Cloud",
+      "body": "Dear Jordan Rodriguez,\n\nI am reaching out regarding the CTO opportunity at Vertex Cloud.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your CTO priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "jordan.rodriguez@vertex-cloud.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-24543",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "633528cb-6117-4d17-afd1-adaa8520d1cc",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Northstar Labs",
+      "body": "Dear Kai Njoroge,\n\nI am reaching out regarding the CTO opportunity at Northstar Labs.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Director of Engineering priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "kai.njoroge@northstar-labs.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-97108",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "1e537b45-0014-4879-9547-b1bb5e00ee03",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Apex Systems",
+      "body": "Dear Reese Wright,\n\nI am reaching out regarding the CTO opportunity at Apex Systems.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Director of Engineering priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "reese.wright@apex-systems.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-37990",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "444db6f6-af14-4cda-ac79-11a34d6b157d",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Northstar Labs",
+      "body": "Dear Kai Njoroge,\n\nI am reaching out regarding the CTO opportunity at Northstar Labs.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Technical Founder priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "kai.njoroge@northstar-labs.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-5328",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "10b010f0-29bb-4093-9be2-63bc539248d5",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Velocity Networks",
+      "body": "Dear Sofia Owens,\n\nI am reaching out regarding the CTO opportunity at Velocity Networks.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your DevOps Manager priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "sofia.owens@velocity-networks.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-26779",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "c107ca02-6fbb-45be-860a-6de472082743",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Prime Technologies",
+      "body": "Dear Moses Johnson,\n\nI am reaching out regarding the CTO opportunity at Prime Technologies.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your DevOps Manager priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "moses.johnson@prime-technologies.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-18451",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "dc7bc774-e268-4acf-b1b1-cb298c6b15b2",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Prime Technologies",
+      "body": "Dear Moses Johnson,\n\nI am reaching out regarding the CTO opportunity at Prime Technologies.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Technical Founder priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "moses.johnson@prime-technologies.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-44798",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "87600f4d-cfb2-44d1-b09b-a556816f424d",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Atlas Solutions",
+      "body": "Dear Taylor Mensah,\n\nI am reaching out regarding the CTO opportunity at Atlas Solutions.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Engineering Manager priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "taylor.mensah@atlas-solutions.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-11974",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "0207c0cc-0a49-438b-b1c9-5bf448579bc7",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Prime Technologies",
+      "body": "Dear Moses Johnson,\n\nI am reaching out regarding the CTO opportunity at Prime Technologies.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Platform Engineering Lead priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "moses.johnson@prime-technologies.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-95270",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "9bfaed0a-1106-422d-bc85-b1bdef21742a",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Brightpath Works",
+      "body": "Dear Morgan Brooks,\n\nI am reaching out regarding the CTO opportunity at Brightpath Works.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Platform Engineering Lead priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "morgan.brooks@brightpath-works.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-66477",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "93eae5c1-317c-43ac-bb2f-46aa4c8ecbce",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Atlas Solutions",
+      "body": "Dear Taylor Mensah,\n\nI am reaching out regarding the CTO opportunity at Atlas Solutions.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Platform Engineering Lead priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "taylor.mensah@atlas-solutions.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-77230",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "33f1763f-7117-4300-a7af-ce98e72c6427",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Apex Systems",
+      "body": "Dear Reese Wright,\n\nI am reaching out regarding the CTO opportunity at Apex Systems.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Platform Engineering Lead priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "reese.wright@apex-systems.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-74079",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "56eb60f1-cdba-4f46-816c-12b636a150b0",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Northstar Labs",
+      "body": "Dear Kai Njoroge,\n\nI am reaching out regarding the CTO opportunity at Northstar Labs.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Platform Engineering Lead priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "kai.njoroge@northstar-labs.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "job-1783233048456-90332",
+      "createdAt": "2026-07-05T06:30:48.456Z",
+      "updatedAt": "2026-07-05T06:30:48.456Z",
+      "prospectId": "4feaccf8-c54f-4df9-adb5-8251a5592372",
+      "campaignId": null,
+      "day": 0,
+      "subject": "CTO | Prime Technologies",
+      "body": "Dear Moses Johnson,\n\nI am reaching out regarding the CTO opportunity at Prime Technologies.\n\nBased on your focus in Saas, I believe my background aligns with your current needs.\n\nRelevant summary:\nFounder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.\n\nIf helpful, I would welcome a brief discussion on how I can contribute to your Platform Engineering Lead priorities.\n\nSincerely,\nBarney R. Gilliom",
+      "scheduledAt": "2026-07-05T06:30:48.456Z",
+      "status": "sent",
+      "jobKind": "initial-outreach",
+      "metadata": {
+        "kind": "initial-outreach",
+        "source": "ai-automation",
+        "provider": "template",
+        "model": "local",
+        "tone": "consultative"
+      },
+      "processedAt": "2026-07-05T06:30:48.978Z",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "moses.johnson@prime-technologies.com"
+        ],
+        "messageId": "mock-1783233048978",
         "simulated": true
       }
     }
@@ -79780,6 +80738,306 @@
         "messageId": "mock-1783144772091",
         "simulated": true
       }
+    },
+    {
+      "id": "evt-1783233048978-347",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "6dad99c9-3665-4fec-b0ae-183818c703b5",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "parker.patel@summit-software.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-864",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "b1ff246c-104b-49aa-b76d-2bd12bd5bc2d",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "reese.wright@apex-systems.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-19",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "8a0022ef-a26c-414b-8d23-d58afa1d3657",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "moses.johnson@prime-technologies.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-209",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "30a41bd5-807d-4b9f-b9c2-b22c888fd13b",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "moses.johnson@prime-technologies.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-132",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "07a4faf1-cb3b-4b19-b9be-635b84d5ad1a",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "avery.walker@kijani-platforms.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-523",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "6ab8a2b9-67cb-4dff-8013-9ef4c3bdd2a9",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "taylor.mensah@atlas-solutions.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-105",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "f5405bf7-4506-4d09-99ed-290e0da2abaa",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "jordan.rodriguez@vertex-cloud.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-873",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "633528cb-6117-4d17-afd1-adaa8520d1cc",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "kai.njoroge@northstar-labs.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-522",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "1e537b45-0014-4879-9547-b1bb5e00ee03",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "reese.wright@apex-systems.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-51",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "444db6f6-af14-4cda-ac79-11a34d6b157d",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "kai.njoroge@northstar-labs.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-621",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "10b010f0-29bb-4093-9be2-63bc539248d5",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "sofia.owens@velocity-networks.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-735",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "c107ca02-6fbb-45be-860a-6de472082743",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "moses.johnson@prime-technologies.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-252",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "dc7bc774-e268-4acf-b1b1-cb298c6b15b2",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "moses.johnson@prime-technologies.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-75",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "87600f4d-cfb2-44d1-b09b-a556816f424d",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "taylor.mensah@atlas-solutions.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-628",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "0207c0cc-0a49-438b-b1c9-5bf448579bc7",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "moses.johnson@prime-technologies.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-89",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "9bfaed0a-1106-422d-bc85-b1bdef21742a",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "morgan.brooks@brightpath-works.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-479",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "93eae5c1-317c-43ac-bb2f-46aa4c8ecbce",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "taylor.mensah@atlas-solutions.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-142",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "33f1763f-7117-4300-a7af-ce98e72c6427",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "reese.wright@apex-systems.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-283",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "56eb60f1-cdba-4f46-816c-12b636a150b0",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "kai.njoroge@northstar-labs.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
+    },
+    {
+      "id": "evt-1783233048978-928",
+      "createdAt": "2026-07-05T06:30:48.978Z",
+      "type": "email.sent",
+      "campaignId": null,
+      "prospectId": "4feaccf8-c54f-4df9-adb5-8251a5592372",
+      "delivery": {
+        "provider": "mock",
+        "accepted": [
+          "moses.johnson@prime-technologies.com"
+        ],
+        "messageId": "mock-1783233048978",
+        "simulated": true
+      }
     }
   ],
   "payments": [],
@@ -79793,50 +81051,64 @@
       "id": "prod-ai-studio",
       "name": "AI Software Operations Studio",
       "category": "AI Engineering",
-      "priceFrom": 7500,
-      "description": "Centralized AI-assisted software engineering, deployment workflows, and operational automation."
+      "priceFrom": 9,
+      "description": "Starter $9/month, Pro $79/month, Enterprise custom quote."
     },
     {
       "id": "prod-stripe-center",
       "name": "Deployment & Stripe Automation Center",
       "category": "Payments",
-      "priceFrom": 4500,
-      "description": "Accelerates Stripe integration, deployment readiness, and payment infrastructure automation."
+      "priceFrom": 79,
+      "description": "Flat rate $79/month for client access and subscription operations."
+    },
+    {
+      "id": "prod-specwright",
+      "name": "Specwright",
+      "category": "Productivity",
+      "priceFrom": 29,
+      "description": "Starter $29/month, Pro $79/month, annual billing approximately 20% off."
     },
     {
       "id": "prod-dbops",
       "name": "DBOps Control Center",
       "category": "Database Operations",
-      "priceFrom": 5500,
-      "description": "Database monitoring, SQL operations, audit logging, and incident management workflows."
+      "priceFrom": 79,
+      "description": "Starter $79/month, Pro $149/month, Enterprise $399/month."
     },
     {
       "id": "prod-fintech",
       "name": "Elite Fintech Systems",
       "category": "FinTech",
-      "priceFrom": 9000,
-      "description": "Multi-tenant fintech SaaS foundation for onboarding, billing, and secure operations."
+      "priceFrom": 12,
+      "description": "Tier anchors: $12/$35/$120 monthly, localized with VAT in supported regions."
     },
     {
-      "id": "prod-api-transfer",
-      "name": "API Transfer",
-      "category": "Integration",
-      "priceFrom": 3500,
-      "description": "API migration, endpoint validation, and environment synchronization workflows."
+      "id": "prod-enpower-command-pro",
+      "name": "EnPowerCommandPro",
+      "category": "Operations",
+      "priceFrom": 39,
+      "description": "$39/month monthly client access plan."
     },
     {
       "id": "prod-righand",
       "name": "RigHand AI",
       "category": "Transportation",
-      "priceFrom": 4000,
-      "description": "Operations intelligence for owner-operators and fleet teams."
+      "priceFrom": 34.99,
+      "description": "Compliance Pro $34.99/month and Fleet Lite $89/month."
     },
     {
       "id": "prod-pc-checker",
       "name": "PC Checker Extreme",
       "category": "IT Support",
-      "priceFrom": 2500,
-      "description": "Automated diagnostics and issue triage for managed IT support services."
+      "priceFrom": 4,
+      "description": "$4/month (pricing page currently unavailable in production URL)."
+    },
+    {
+      "id": "prod-eastbridge-ops",
+      "name": "EastBridge Ops Intelligence",
+      "category": "Operations",
+      "priceFrom": 0,
+      "description": "No published paid Stripe pricing page yet (internal catalog placeholder)."
     }
   ],
   "config": {
@@ -79849,114 +81121,114 @@
       "jobTitle": "CTO",
       "tone": "consultative",
       "resumeSummary": "Founder and engineer focused on production-ready automation, Stripe deployment flows, and measurable operational improvements.",
-      "lastDailyRunOn": "2026-07-04",
+      "lastDailyRunOn": "2026-07-05",
       "lastRunSummary": {
         "mode": "daily",
-        "ranAt": "2026-07-04T05:59:31.587Z",
-        "topProspectsEvaluated": 25,
-        "outreachQueued": 25,
+        "ranAt": "2026-07-05T06:30:48.456Z",
+        "topProspectsEvaluated": 20,
+        "outreachQueued": 20,
         "followUpsQueued": 0,
-        "repliedInquiriesReviewed": 2,
+        "repliedInquiriesReviewed": 0,
         "recommendations": [
           {
-            "prospectId": "d78f78ac-6069-4ba8-89bc-1602f60f0065",
-            "company": "Kijani Platforms",
+            "prospectId": "6dad99c9-3665-4fec-b0ae-183818c703b5",
+            "company": "Summit Software",
             "stage": "lead",
-            "score": 99,
+            "score": 100,
             "tier": "Hot",
             "nextAction": "send-personalized-outreach",
             "reason": "High lead score at early stage indicates strong outreach opportunity.",
-            "prompt": "Draft a concise professional outreach email to Kijani Platforms positioning Elite Fintech Systems."
+            "prompt": "Draft a concise professional outreach email to Summit Software positioning AI Software Operations Studio."
           },
           {
-            "prospectId": "6fb2260d-546a-4e1a-81b9-0ad90dc8cc9b",
-            "company": "Kijani Platforms",
+            "prospectId": "b1ff246c-104b-49aa-b76d-2bd12bd5bc2d",
+            "company": "Apex Systems",
             "stage": "lead",
-            "score": 99,
+            "score": 100,
             "tier": "Hot",
             "nextAction": "send-personalized-outreach",
             "reason": "High lead score at early stage indicates strong outreach opportunity.",
-            "prompt": "Draft a concise professional outreach email to Kijani Platforms positioning Elite Fintech Systems."
+            "prompt": "Draft a concise professional outreach email to Apex Systems positioning AI Software Operations Studio."
           },
           {
-            "prospectId": "166d8903-7796-4a31-800c-f2e77082b88a",
-            "company": "Kijani Platforms",
-            "stage": "lead",
-            "score": 99,
-            "tier": "Hot",
-            "nextAction": "send-personalized-outreach",
-            "reason": "High lead score at early stage indicates strong outreach opportunity.",
-            "prompt": "Draft a concise professional outreach email to Kijani Platforms positioning Elite Fintech Systems."
-          },
-          {
-            "prospectId": "f4dd8f09-9177-4e54-a70c-cbe6550159b8",
-            "company": "Kijani Platforms",
-            "stage": "lead",
-            "score": 99,
-            "tier": "Hot",
-            "nextAction": "send-personalized-outreach",
-            "reason": "High lead score at early stage indicates strong outreach opportunity.",
-            "prompt": "Draft a concise professional outreach email to Kijani Platforms positioning Elite Fintech Systems."
-          },
-          {
-            "prospectId": "bb4594ab-bdaf-439d-95e4-b3e1c0722806",
-            "company": "Kijani Platforms",
-            "stage": "lead",
-            "score": 99,
-            "tier": "Hot",
-            "nextAction": "send-personalized-outreach",
-            "reason": "High lead score at early stage indicates strong outreach opportunity.",
-            "prompt": "Draft a concise professional outreach email to Kijani Platforms positioning Elite Fintech Systems."
-          },
-          {
-            "prospectId": "e7dcc30f-ea4a-4923-b4f7-e2b4316c6551",
+            "prospectId": "8a0022ef-a26c-414b-8d23-d58afa1d3657",
             "company": "Prime Technologies",
             "stage": "lead",
-            "score": 99,
+            "score": 100,
             "tier": "Hot",
             "nextAction": "send-personalized-outreach",
             "reason": "High lead score at early stage indicates strong outreach opportunity.",
-            "prompt": "Draft a concise professional outreach email to Prime Technologies positioning Elite Fintech Systems."
+            "prompt": "Draft a concise professional outreach email to Prime Technologies positioning AI Software Operations Studio."
           },
           {
-            "prospectId": "57fbdbd0-e712-4f6e-b41b-28dca476861e",
+            "prospectId": "30a41bd5-807d-4b9f-b9c2-b22c888fd13b",
             "company": "Prime Technologies",
+            "stage": "lead",
+            "score": 100,
+            "tier": "Hot",
+            "nextAction": "send-personalized-outreach",
+            "reason": "High lead score at early stage indicates strong outreach opportunity.",
+            "prompt": "Draft a concise professional outreach email to Prime Technologies positioning AI Software Operations Studio."
+          },
+          {
+            "prospectId": "07a4faf1-cb3b-4b19-b9be-635b84d5ad1a",
+            "company": "Kijani Platforms",
+            "stage": "lead",
+            "score": 100,
+            "tier": "Hot",
+            "nextAction": "send-personalized-outreach",
+            "reason": "High lead score at early stage indicates strong outreach opportunity.",
+            "prompt": "Draft a concise professional outreach email to Kijani Platforms positioning AI Software Operations Studio."
+          },
+          {
+            "prospectId": "6ab8a2b9-67cb-4dff-8013-9ef4c3bdd2a9",
+            "company": "Atlas Solutions",
+            "stage": "lead",
+            "score": 100,
+            "tier": "Hot",
+            "nextAction": "send-personalized-outreach",
+            "reason": "High lead score at early stage indicates strong outreach opportunity.",
+            "prompt": "Draft a concise professional outreach email to Atlas Solutions positioning AI Software Operations Studio."
+          },
+          {
+            "prospectId": "f5405bf7-4506-4d09-99ed-290e0da2abaa",
+            "company": "Vertex Cloud",
             "stage": "lead",
             "score": 99,
             "tier": "Hot",
             "nextAction": "send-personalized-outreach",
             "reason": "High lead score at early stage indicates strong outreach opportunity.",
-            "prompt": "Draft a concise professional outreach email to Prime Technologies positioning Elite Fintech Systems."
+            "prompt": "Draft a concise professional outreach email to Vertex Cloud positioning AI Software Operations Studio."
           },
           {
-            "prospectId": "c9126025-2a37-4203-92b1-f4eebc9ae291",
-            "company": "Prime Technologies",
+            "prospectId": "633528cb-6117-4d17-afd1-adaa8520d1cc",
+            "company": "Northstar Labs",
             "stage": "lead",
             "score": 99,
             "tier": "Hot",
             "nextAction": "send-personalized-outreach",
             "reason": "High lead score at early stage indicates strong outreach opportunity.",
-            "prompt": "Draft a concise professional outreach email to Prime Technologies positioning Elite Fintech Systems."
+            "prompt": "Draft a concise professional outreach email to Northstar Labs positioning AI Software Operations Studio."
           },
           {
-            "prospectId": "d2727cd1-8006-4abe-946e-718b63958f87",
-            "company": "Prime Technologies",
+            "prospectId": "1e537b45-0014-4879-9547-b1bb5e00ee03",
+            "company": "Apex Systems",
             "stage": "lead",
-            "score": 99,
+            "score": 98,
             "tier": "Hot",
             "nextAction": "send-personalized-outreach",
             "reason": "High lead score at early stage indicates strong outreach opportunity.",
-            "prompt": "Draft a concise professional outreach email to Prime Technologies positioning Elite Fintech Systems."
+            "prompt": "Draft a concise professional outreach email to Apex Systems positioning AI Software Operations Studio."
           },
           {
-            "prospectId": "a539ff62-65a1-45be-b1b5-991703d4fc5b",
-            "company": "Prime Technologies",
+            "prospectId": "444db6f6-af14-4cda-ac79-11a34d6b157d",
+            "company": "Northstar Labs",
             "stage": "lead",
-            "score": 99,
+            "score": 97,
             "tier": "Hot",
             "nextAction": "send-personalized-outreach",
             "reason": "High lead score at early stage indicates strong outreach opportunity.",
-            "prompt": "Draft a concise professional outreach email to Prime Technologies positioning Elite Fintech Systems."
+            "prompt": "Draft a concise professional outreach email to Northstar Labs positioning AI Software Operations Studio."
           }
         ]
       }

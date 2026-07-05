@@ -1025,7 +1025,10 @@ async function refreshProposals() {
       return `<tr>
         <td><input type="checkbox" data-row-id="${proposal.id}" aria-label="Select proposal row" /></td>
         <td>${proposal.company}</td>
-        <td>${proposal.productName}</td>
+        <td>
+          <div>${proposal.productName}</div>
+          <small>Monthly Client Access</small>
+        </td>
         <td>${formatCurrency(proposal.total)} / month</td>
         <td><span class="tag draft">${proposal.status}</span></td>
         <td>
@@ -1048,7 +1051,10 @@ async function initProposals() {
   const deleteSelectedBtn = byId("proposalDeleteSelectedBtn");
 
   select.innerHTML = products
-    .map((product) => `<option value="${product.id}">${product.name} (${formatCurrency(product.priceFrom)}+)</option>`)
+    .map(
+      (product) =>
+        `<option value="${product.id}">${product.name} | Monthly Client Access (${formatCurrency(product.priceFrom)}/month)</option>`
+    )
     .join("");
 
   const deploymentStripeProduct = products.find((item) =>

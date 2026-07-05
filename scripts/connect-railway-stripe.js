@@ -12,6 +12,7 @@ function parseArgs(argv) {
     publicUrl: "",
     skipDeploy: false,
     skipRailwayLogin: false,
+    skipRailwayLink: false,
     skipStripeWebhook: false
   };
 
@@ -31,6 +32,11 @@ function parseArgs(argv) {
 
     if (arg === "--skip-railway-login") {
       out.skipRailwayLogin = true;
+      continue;
+    }
+
+    if (arg === "--skip-railway-link") {
+      out.skipRailwayLink = true;
       continue;
     }
 
@@ -60,7 +66,7 @@ function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: ROOT_DIR,
     stdio: "inherit",
-    shell: process.platform === "win32",
+    shell: false,
     ...options
   });
 
@@ -74,7 +80,7 @@ function runCapture(command, args) {
     cwd: ROOT_DIR,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
-    shell: process.platform === "win32"
+    shell: false
   });
 
   if (result.status !== 0) {
@@ -145,6 +151,103 @@ function buildRailwayVars(getVar, publicUrl) {
     .map(([key, value]) => `${key}=${value}`);
 }
 
+async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const headers = {
+    "content-type": "application/json"
+  };
+
+  if (options.headers && typeof options.headers === "object") {
+    Object.assign(headers, options.headers);
+  }
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers
+    });
+
+    let payload = null;
+    const text = await response.text();
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = null;
+      }
+    }
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      body: payload,
+      raw: text
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function verifyDeploymentRoutes(publicUrl) {
+  const healthUrl = `${publicUrl}/api/health`;
+  const health = await fetchJsonWithTimeout(healthUrl, { method: "GET" });
+
+  if (!health.ok || health.body?.ok !== true) {
+    throw new Error(
+      `Railway deployment is reachable but /api/health is invalid (${health.status}). ` +
+        "This usually means the wrong service was linked/deployed."
+    );
+  }
+
+  const webhookUrl = `${publicUrl}/api/stripe/webhook`;
+  const webhook = await fetchJsonWithTimeout(webhookUrl, {
+    method: "POST",
+    body: JSON.stringify({ dryRun: true })
+  });
+
+  const routeExists = webhook.status === 400 || webhook.status === 503;
+  if (!routeExists) {
+    throw new Error(
+      `Railway deployment is missing expected Stripe webhook route at ${webhookUrl} ` +
+        `(status ${webhook.status}).`
+    );
+  }
+}
+
+function runRailwaySetWithRetry(pair, maxAttempts = 3) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      run("railway", ["variables", "set", pair]);
+      return;
+    } catch (error) {
+      lastError = error;
+      console.warn(`Railway variable set failed (attempt ${attempt}/${maxAttempts}) for ${pair.split("=")[0]}.`);
+    }
+  }
+
+  throw lastError || new Error(`Unable to set Railway variable: ${pair.split("=")[0]}`);
+}
+
+async function verifyWebhookSecretSync(publicUrl) {
+  const settingsUrl = `${publicUrl}/api/settings/env`;
+  const settings = await fetchJsonWithTimeout(settingsUrl, { method: "GET" });
+
+  if (!settings.ok || !settings.body?.integrations?.stripe) {
+    throw new Error(`Could not verify webhook synchronization via ${settingsUrl} (status ${settings.status}).`);
+  }
+
+  if (!settings.body.integrations.stripe.hasWebhookSecret) {
+    throw new Error(
+      "Webhook secret is still not visible in deployed app config after Railway sync/deploy. " +
+        "Check service linkage, environment scope, and last deployment status."
+    );
+  }
+}
+
 async function createStripeWebhookIfPossible(getVar, publicUrl) {
   const stripeSecret = getVar("STRIPE_SECRET_KEY").trim();
 
@@ -184,13 +287,19 @@ async function main() {
     run("railway", ["login"]);
   }
 
-  console.log("Link this folder to your Railway project/service if prompted...");
-  run("railway", ["link"]);
+  if (!args.skipRailwayLink) {
+    console.log("Link this folder to your Railway project/service if prompted...");
+    run("railway", ["link"]);
+  } else {
+    console.log("Skipping railway link (using current linked project/service).");
+  }
 
   const railwayVarPairs = buildRailwayVars(getVar, args.publicUrl);
   if (railwayVarPairs.length > 0) {
     console.log(`Setting ${railwayVarPairs.length} Railway environment variables...`);
-    run("railway", ["variables", "set", ...railwayVarPairs]);
+    for (const pair of railwayVarPairs) {
+      runRailwaySetWithRetry(pair);
+    }
   } else {
     console.log("No local env values found to set on Railway (except computed URLs).");
   }
@@ -202,12 +311,22 @@ async function main() {
 
   if (webhookSecret) {
     console.log("Saving STRIPE_WEBHOOK_SECRET into Railway variables...");
-    run("railway", ["variables", "set", `STRIPE_WEBHOOK_SECRET=${webhookSecret}`]);
+    runRailwaySetWithRetry(`STRIPE_WEBHOOK_SECRET=${webhookSecret}`);
   }
 
   if (!args.skipDeploy) {
     console.log("Deploying to Railway...");
     run("railway", ["up"]);
+
+    console.log("Verifying deployed API routes...");
+    await verifyDeploymentRoutes(args.publicUrl);
+
+    if (webhookSecret) {
+      console.log("Verifying webhook secret synchronization in deployed app config...");
+      await verifyWebhookSecretSync(args.publicUrl);
+    }
+  } else if (webhookSecret) {
+    console.log("Skipped deploy, so webhook secret synchronization could not be runtime-verified.");
   }
 
   console.log("Done. Railway + Stripe setup automation completed.");

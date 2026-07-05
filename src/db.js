@@ -2,19 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 
-function resolveDbPath() {
-  const configured = String(process.env.DATABASE_PATH || "").trim();
-
-  if (!configured) {
-    return path.join(__dirname, "..", "data", "db.json");
-  }
-
-  return path.isAbsolute(configured)
-    ? configured
-    : path.resolve(path.join(__dirname, ".."), configured);
-}
-
-const DB_PATH = resolveDbPath();
+const DB_PATH = path.join(__dirname, "..", "data", "db.json");
 
 const defaultDb = {
   prospects: [],
@@ -34,57 +22,73 @@ const defaultDb = {
       id: "prod-ai-studio",
       name: "AI Software Operations Studio",
       category: "AI Engineering",
-      priceFrom: 7500,
+      priceFrom: 9,
       description:
-        "Centralized AI-assisted software engineering, deployment workflows, and operational automation."
+        "Starter $9/month, Pro $79/month, Enterprise custom quote."
     },
     {
       id: "prod-stripe-center",
       name: "Deployment & Stripe Automation Center",
       category: "Payments",
-      priceFrom: 4500,
+      priceFrom: 79,
       description:
-        "Accelerates Stripe integration, deployment readiness, and payment infrastructure automation."
+        "Flat rate $79/month for client access and subscription operations."
+    },
+    {
+      id: "prod-specwright",
+      name: "Specwright",
+      category: "Productivity",
+      priceFrom: 29,
+      description:
+        "Starter $29/month, Pro $79/month, annual billing approximately 20% off."
     },
     {
       id: "prod-dbops",
       name: "DBOps Control Center",
       category: "Database Operations",
-      priceFrom: 5500,
+      priceFrom: 79,
       description:
-        "Database monitoring, SQL operations, audit logging, and incident management workflows."
+        "Starter $79/month, Pro $149/month, Enterprise $399/month."
     },
     {
       id: "prod-fintech",
       name: "Elite Fintech Systems",
       category: "FinTech",
-      priceFrom: 9000,
+      priceFrom: 12,
       description:
-        "Multi-tenant fintech SaaS foundation for onboarding, billing, and secure operations."
+        "Tier anchors: $12/$35/$120 monthly, localized with VAT in supported regions."
     },
     {
-      id: "prod-api-transfer",
-      name: "API Transfer",
-      category: "Integration",
-      priceFrom: 3500,
+      id: "prod-enpower-command-pro",
+      name: "EnPowerCommandPro",
+      category: "Operations",
+      priceFrom: 39,
       description:
-        "API migration, endpoint validation, and environment synchronization workflows."
+        "$39/month monthly client access plan."
     },
     {
       id: "prod-righand",
       name: "RigHand AI",
       category: "Transportation",
-      priceFrom: 4000,
+      priceFrom: 34.99,
       description:
-        "Operations intelligence for owner-operators and fleet teams."
+        "Compliance Pro $34.99/month and Fleet Lite $89/month."
     },
     {
       id: "prod-pc-checker",
       name: "PC Checker Extreme",
       category: "IT Support",
-      priceFrom: 2500,
+      priceFrom: 4,
       description:
-        "Automated diagnostics and issue triage for managed IT support services."
+        "$4/month (pricing page currently unavailable in production URL)."
+    },
+    {
+      id: "prod-eastbridge-ops",
+      name: "EastBridge Ops Intelligence",
+      category: "Operations",
+      priceFrom: 0,
+      description:
+        "No published paid Stripe pricing page yet (internal catalog placeholder)."
     }
   ],
   config: {
@@ -111,6 +115,11 @@ function ensureDb() {
     const merged = { ...defaultDb, ...parsed };
 
     for (const key of Object.keys(defaultDb)) {
+      if (key === "products") {
+        merged[key] = defaultDb[key];
+        continue;
+      }
+
       if (typeof defaultDb[key] === "object" && !Array.isArray(defaultDb[key])) {
         const parsedSection = parsed[key] && typeof parsed[key] === "object" ? parsed[key] : {};
         merged[key] = { ...defaultDb[key], ...parsedSection };
