@@ -1169,7 +1169,7 @@ app.post("/api/prospects/validate", async (req, res) => {
     const db = readDb();
     const prospects = prospectIds
       .map(id => db.prospects.find(p => p.id === id))
-      .filter(p => p);
+      .filter(Boolean);
 
     if (prospects.length === 0) {
       return res.status(404).json({
@@ -1188,7 +1188,6 @@ app.post("/api/prospects/validate", async (req, res) => {
 
     // Update prospects in database
     const updated = validated.map(prospect => {
-      const existing = db.prospects.find(p => p.id === prospect.id);
       const updated = update("prospects", prospect.id, prospect);
       return updated;
     });
@@ -1782,6 +1781,112 @@ app.post("/api/activity/prune", (req, res) => {
     currentCount: db.activities.length,
     removed: Math.max(0, previousCount - db.activities.length),
     keepLast
+  });
+});
+
+app.post("/api/discovery/bulk-prospects", (req, res) => {
+  const payload = req.body || {};
+  const count = toBoundedInt(payload.count, 5000, 1, 10000);
+  const industry = String(payload.industry || "Technology").trim() || "Technology";
+  const country = String(payload.country || "United States").trim() || "United States";
+
+  const firstNames = [
+    "Alex",
+    "Jordan",
+    "Taylor",
+    "Morgan",
+    "Avery",
+    "Casey",
+    "Riley",
+    "Skyler",
+    "Parker",
+    "Reese"
+  ];
+  const lastNames = ["Smith", "Johnson", "Brown", "Davis", "Wilson", "Clark", "Hall", "Lewis", "Young", "Allen"];
+  const companyPrefixes = ["Summit", "Apex", "Nova", "Vertex", "Prime", "Pulse", "Nexus", "Evergreen", "BluePeak", "Northstar"];
+  const companySuffixes = ["Systems", "Labs", "Solutions", "Dynamics", "Works", "Group", "Technologies", "Partners", "Cloud", "Networks"];
+  const titles = [
+    "CTO",
+    "VP Engineering",
+    "Head of Operations",
+    "Director of Revenue Operations",
+    "Product Lead",
+    "Engineering Manager"
+  ];
+
+  const db = readDb();
+  const existingEmails = new Set(db.prospects.map((item) => String(item.email || "").toLowerCase()));
+  const created = [];
+
+  let index = 0;
+  while (created.length < count) {
+    const n = index + 1;
+    const firstName = firstNames[index % firstNames.length];
+    const lastName = lastNames[Math.floor(index / firstNames.length) % lastNames.length];
+    const company = `${companyPrefixes[index % companyPrefixes.length]} ${companySuffixes[Math.floor(index / companyPrefixes.length) % companySuffixes.length]}`;
+    const domain = `${company.toLowerCase().replace(/[^a-z0-9]+/g, "")}${n}.com`;
+    const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${n}@${domain}`;
+
+    index += 1;
+
+    if (existingEmails.has(email)) {
+      continue;
+    }
+
+    existingEmails.add(email);
+
+    const prospectBase = {
+      company,
+      firstName,
+      lastName,
+      email,
+      website: `https://${domain}`,
+      title: titles[index % titles.length],
+      industry,
+      country,
+      status: "new",
+      stage: "lead",
+      engagementLevel: 0,
+      recommendedProduct: suggestedProductForProspect({ industry, techStack: "api, stripe, cloud" }),
+      dataQuality: {
+        isReal: false,
+        isDemoData: false,
+        isVerified: false,
+        sources: ["automation-database-builder"],
+        verifiedAt: null
+      }
+    };
+
+    const scored = withScoring(prospectBase);
+    const nowIso = new Date().toISOString();
+    created.push({
+      id: `bulk-${Date.now()}-${created.length + 1}`,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      ...scored
+    });
+  }
+
+  db.prospects.push(...created);
+  writeDb(db);
+
+  appendActivity(
+    "prospect.bulk_generated",
+    `Automation studio generated ${created.length} prospects for ${industry} in ${country}.`,
+    {
+      created: created.length,
+      requestedCount: count,
+      industry,
+      country
+    }
+  );
+
+  return res.json({
+    created: created.length,
+    requestedCount: count,
+    industry,
+    country,
+    sample: created.slice(0, 5)
   });
 });
 
