@@ -1,3 +1,0 @@
-web: gunicorn dsac.wsgi:application
-worker: celery -A dsac worker -l info
-beat: celery -A dsac beat -l info
