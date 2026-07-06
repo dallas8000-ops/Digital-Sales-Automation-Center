@@ -107,7 +107,6 @@ The app listens on port `4000` by default.
 
 - `npm start` — start the app
 - `npm run dev` — run the app locally
-- `npm run seed` — seed demo data
 - `npm run process:email-jobs` — process queued outbound email jobs
 - `npm run connect:railway-stripe -- --public-url <https-url>` — push Railway vars, optionally create Stripe webhook, and deploy
 - `npm run verify:deploy-guard` — validate deploy guard expectations before shipping
