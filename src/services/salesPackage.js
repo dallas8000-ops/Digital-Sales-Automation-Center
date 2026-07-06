@@ -102,9 +102,18 @@ function slugify(text) {
     .replace(/(^-|-$)/g, "");
 }
 
-function detectWebsiteTechnology(url) {
-  const value = String(url || "").toLowerCase();
+function normalizeUrl(rawUrl) {
+  const value = String(rawUrl || "").trim();
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+  return `https://${value}`;
+}
+
+function collectHeuristicTech(urlValue) {
   const tech = [];
+  const value = String(urlValue || "").toLowerCase();
 
   if (value.includes("shop") || value.includes("store")) {
     tech.push("Shopify", "Stripe", "Cloudflare");
@@ -126,12 +135,119 @@ function detectWebsiteTechnology(url) {
     tech.push("Node.js", "PostgreSQL", "AWS", "Nginx");
   }
 
-  return {
-    url,
-    technologies: Array.from(new Set(tech)),
-    confidence: 0.73,
-    notes: "Heuristic detection based on domain and sector patterns."
-  };
+  return tech;
+}
+
+function addFingerprint(techSet, reasonSet, technology, reason) {
+  techSet.add(technology);
+  reasonSet.add(reason);
+}
+
+function detectFromHeaders(headers, techSet, reasonSet) {
+  const server = String(headers.get("server") || "").toLowerCase();
+  const poweredBy = String(headers.get("x-powered-by") || "").toLowerCase();
+  const cfRay = String(headers.get("cf-ray") || "");
+  const via = String(headers.get("via") || "").toLowerCase();
+  const setCookie = String(headers.get("set-cookie") || "").toLowerCase();
+
+  if (server.includes("nginx")) addFingerprint(techSet, reasonSet, "Nginx", "server header contains nginx");
+  if (server.includes("cloudflare") || cfRay) addFingerprint(techSet, reasonSet, "Cloudflare", "cloudflare headers detected");
+  if (server.includes("vercel")) addFingerprint(techSet, reasonSet, "Vercel", "server header contains vercel");
+  if (server.includes("apache")) addFingerprint(techSet, reasonSet, "Apache", "server header contains apache");
+  if (via.includes("fastly")) addFingerprint(techSet, reasonSet, "Fastly", "via header suggests fastly");
+
+  if (poweredBy.includes("express")) addFingerprint(techSet, reasonSet, "Express", "x-powered-by contains express");
+  if (poweredBy.includes("next.js")) addFingerprint(techSet, reasonSet, "Next.js", "x-powered-by contains next.js");
+  if (poweredBy.includes("asp.net")) addFingerprint(techSet, reasonSet, "ASP.NET", "x-powered-by contains asp.net");
+  if (poweredBy.includes("php")) addFingerprint(techSet, reasonSet, "PHP", "x-powered-by contains php");
+
+  if (setCookie.includes("_shopify")) addFingerprint(techSet, reasonSet, "Shopify", "shopify cookie detected");
+}
+
+function detectFromBody(body, techSet, reasonSet) {
+  const text = String(body || "").toLowerCase();
+
+  if (text.includes("__next_data__") || text.includes("/_next/")) {
+    addFingerprint(techSet, reasonSet, "Next.js", "next.js runtime markers in html");
+    addFingerprint(techSet, reasonSet, "React", "next.js implies react runtime");
+  }
+  if (text.includes("__nuxt") || text.includes("/_nuxt/")) addFingerprint(techSet, reasonSet, "Nuxt.js", "nuxt markers in html");
+  if (text.includes("wp-content") || text.includes("wordpress")) addFingerprint(techSet, reasonSet, "WordPress", "wordpress markers in html");
+  if (text.includes("woocommerce")) addFingerprint(techSet, reasonSet, "WooCommerce", "woocommerce markers in html");
+  if (text.includes("cdn.shopify.com") || text.includes("shopify-buy")) addFingerprint(techSet, reasonSet, "Shopify", "shopify assets in html");
+
+  if (text.includes("js.stripe.com") || text.includes("stripe.com/v3")) addFingerprint(techSet, reasonSet, "Stripe", "stripe client script detected");
+  if (text.includes("googletagmanager.com")) addFingerprint(techSet, reasonSet, "Google Tag Manager", "gtm script detected");
+  if (text.includes("google-analytics.com") || text.includes("gtag(")) addFingerprint(techSet, reasonSet, "Google Analytics", "analytics markers detected");
+  if (text.includes("segment.com") || text.includes("analytics.load")) addFingerprint(techSet, reasonSet, "Segment", "segment markers detected");
+  if (text.includes("intercom") && text.includes("widget")) addFingerprint(techSet, reasonSet, "Intercom", "intercom widget markers detected");
+  if (text.includes("hubspot")) addFingerprint(techSet, reasonSet, "HubSpot", "hubspot markers detected");
+}
+
+async function detectWebsiteTechnology(url) {
+  const normalizedUrl = normalizeUrl(url);
+
+  if (!normalizedUrl) {
+    return {
+      url,
+      technologies: [],
+      confidence: 0,
+      validated: false,
+      notes: "No URL provided."
+    };
+  }
+
+  const techSet = new Set();
+  const reasonSet = new Set();
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(normalizedUrl, {
+      method: "GET",
+      redirect: "follow",
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; DSAC-Tech-Detector/1.0)",
+        Accept: "text/html,application/xhtml+xml"
+      }
+    });
+
+    clearTimeout(timeout);
+
+    const html = await response.text();
+
+    detectFromHeaders(response.headers, techSet, reasonSet);
+    detectFromBody(html, techSet, reasonSet);
+
+    const technologies = Array.from(techSet);
+    const confidence = technologies.length > 0
+      ? Math.min(0.95, Number((0.5 + technologies.length * 0.07).toFixed(2)))
+      : 0.35;
+
+    return {
+      url: normalizedUrl,
+      statusCode: response.status,
+      validated: true,
+      technologies,
+      confidence,
+      evidence: Array.from(reasonSet).slice(0, 12),
+      notes:
+        technologies.length > 0
+          ? "Validated from live headers and HTML fingerprint signals."
+          : "Site fetched successfully but no strong technology fingerprints were found."
+    };
+  } catch (error) {
+    const fallback = Array.from(new Set(collectHeuristicTech(normalizedUrl)));
+    return {
+      url: normalizedUrl,
+      validated: false,
+      technologies: fallback,
+      confidence: 0.35,
+      notes: `Live validation failed, returning heuristic fallback: ${error.message}`
+    };
+  }
 }
 
 function buildSalesAssetPack() {

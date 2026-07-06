@@ -1890,19 +1890,24 @@ app.post("/api/discovery/bulk-prospects", (req, res) => {
   });
 });
 
-app.post("/api/discovery/tech-detect", (req, res) => {
+app.post("/api/discovery/tech-detect", async (req, res) => {
   const payload = req.body || {};
   if (!payload.url) {
     return res.status(400).json({ error: "url is required" });
   }
 
-  const result = detectWebsiteTechnology(payload.url);
-  appendActivity("tech.detected", `Technology detection completed for ${payload.url}`, {
-    url: payload.url,
-    technologies: result.technologies
-  });
+  try {
+    const result = await detectWebsiteTechnology(payload.url);
+    appendActivity("tech.detected", `Technology detection completed for ${payload.url}`, {
+      url: payload.url,
+      technologies: result.technologies,
+      validated: result.validated
+    });
 
-  res.json(result);
+    return res.json(result);
+  } catch (error) {
+    return res.status(503).json({ error: `technology detection failed: ${error.message}` });
+  }
 });
 
 app.get("/api/sales-package/assets", (_req, res) => {
