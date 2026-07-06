@@ -19,7 +19,7 @@ This app includes an automated setup command that:
 
 ### Run Automated Setup
 
-```bash
+```
 npm run connect:railway-stripe -- --public-url https://YOUR-APP.up.railway.app
 ```
 
@@ -41,6 +41,21 @@ The automation syncs these values to Railway when present:
 - `SMTP_HOST`
 - `SMTP_PORT`
 - `SMTP_SECURE`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+
+### Stripe Webhook Endpoint
+
+The webhook endpoint used is:
+
+- `/api/stripe/webhook`
+
+The script creates a Stripe webhook endpoint for event:
+
+- `checkout.session.completed`
 - `SMTP_USER`
 - `SMTP_PASS`
 - `SMTP_FROM`

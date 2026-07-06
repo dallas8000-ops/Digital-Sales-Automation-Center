@@ -28,6 +28,7 @@ const { createCheckoutSession, verifyWebhook, getStripeConfig } = require("./src
 const { sendEmail, getMailConfig } = require("./src/services/mailService");
 const { processDueEmailJobs } = require("./src/services/sequenceProcessor");
 const { getAiConfig, generateEmailDraftWithOpenAI } = require("./src/services/aiEmailService");
+const { batchValidateProspects, validateProspect } = require("./src/services/validationService");
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -823,32 +824,114 @@ app.get("/api/prospects/export.csv", (req, res) => {
   res.send(csv);
 });
 
-app.post("/api/prospects", (req, res) => {
+app.post("/api/prospects", async (req, res) => {
   const payload = req.body || {};
 
   if (!payload.company || !payload.email) {
     return res.status(400).json({ error: "company and email are required" });
   }
 
+  // Validation is REQUIRED - check if API key is available
+  if (!process.env.HUNTER_API_KEY) {
+    return res.status(400).json({
+      error: "Data verification requires HUNTER_API_KEY in .env",
+      reason: "API key not configured",
+      mustVerify: true
+    });
+  }
+
   const recommendedProduct = payload.recommendedProduct || suggestedProductForProspect(payload);
 
-  const prospect = insert("prospects", {
-    ...payload,
-    status: payload.status || "new",
-    stage: payload.stage || "lead",
-    engagementLevel: Number(payload.engagementLevel || 0),
-    recommendedProduct
-  });
+  try {
+    // Create temporary prospect object for validation
+    const tempProspect = {
+      ...payload,
+      company: payload.company,
+      email: payload.email,
+      website: payload.website
+    };
 
-  const scored = withScoring(prospect);
+    // Validate email and domain FIRST - this is mandatory
+    const validated = await validateProspect(tempProspect, {
+      validateEmail: true,
+      validateDomain: true,
+      apiKey: process.env.HUNTER_API_KEY
+    });
 
-  appendActivity("prospect.created", `New prospect added: ${scored.company}`, {
-    prospectId: scored.id,
-    score: scored.score,
-    tier: scored.tier
-  });
+    // Check validation results - BOTH must be valid
+    const emailValid = validated.validation?.email?.valid === true;
+    const domainValid = validated.validation?.domain?.valid === true;
 
-  return res.status(201).json(scored);
+    // Reject if either email or domain failed validation
+    if (!emailValid) {
+      return res.status(422).json({
+        error: "Data not confirmed",
+        reason: "Email validation failed",
+        email: payload.email,
+        validation: {
+          email: validated.validation?.email,
+          domain: null
+        },
+        saved: false
+      });
+    }
+
+    if (!domainValid) {
+      return res.status(422).json({
+        error: "Data not confirmed",
+        reason: "Domain validation failed",
+        company: payload.company,
+        validation: {
+          email: validated.validation?.email,
+          domain: validated.validation?.domain
+        },
+        saved: false
+      });
+    }
+
+    // Both validations passed - now save the prospect
+    const prospect = insert("prospects", {
+      ...payload,
+      status: payload.status || "new",
+      stage: payload.stage || "lead",
+      engagementLevel: Number(payload.engagementLevel || 0),
+      recommendedProduct,
+      dataQuality: {
+        isReal: true,
+        isVerified: true,
+        validation: {
+          email: 'valid',
+          domain: 'valid'
+        },
+        sources: ['manual-entry-verified'],
+        verifiedAt: new Date().toISOString(),
+        emailScore: validated.validation?.email?.score || null
+      }
+    });
+
+    const scoredProspect = withScoring(prospect);
+
+    appendActivity("prospect.created", `Real verified prospect added: ${scoredProspect.company}`, {
+      prospectId: scoredProspect.id,
+      score: scoredProspect.score,
+      tier: scoredProspect.tier,
+      emailValid: true,
+      domainValid: true,
+      source: 'verified'
+    });
+
+    return res.status(201).json(scoredProspect);
+
+  } catch (error) {
+    console.error("Prospect validation error:", error.message);
+    
+    return res.status(503).json({
+      error: "Data not confirmed",
+      reason: "Verification service error: " + error.message,
+      saved: false,
+      retryable: true
+    });
+  }
 });
 
 app.post("/api/ai/email-draft", async (req, res) => {
@@ -1060,6 +1143,74 @@ app.post("/api/prospects/bulk-delete-by-query", (req, res) => {
     ...result,
     matched: filtered.length
   });
+});
+
+app.post("/api/prospects/validate", async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const prospectIds = payload.ids || [];
+    const validateEmail = payload.validateEmail === true || payload.validateEmail === 'true';
+    const validateDomain = payload.validateDomain === true || payload.validateDomain === 'true';
+    const apiKey = process.env.HUNTER_API_KEY;
+
+    if (!validateEmail && !validateDomain) {
+      return res.status(400).json({
+        error: "Must specify validateEmail or validateDomain",
+        validated: 0
+      });
+    }
+
+    if (!apiKey) {
+      return res.status(400).json({
+        error: "Hunter API key not configured in .env (HUNTER_API_KEY)",
+        validated: 0
+      });
+    }
+
+    const db = readDb();
+    const prospects = prospectIds
+      .map(id => db.prospects.find(p => p.id === id))
+      .filter(p => p);
+
+    if (prospects.length === 0) {
+      return res.status(404).json({
+        error: "No valid prospect IDs found",
+        validated: 0
+      });
+    }
+
+    // Validate prospects
+    const validated = await batchValidateProspects(prospects, {
+      validateEmail,
+      validateDomain,
+      apiKey,
+      batchSize: 3
+    });
+
+    // Update prospects in database
+    const updated = validated.map(prospect => {
+      const existing = db.prospects.find(p => p.id === prospect.id);
+      const updated = update("prospects", prospect.id, prospect);
+      return updated;
+    });
+
+    appendActivity("prospect.validated", `Validated ${updated.length} prospects for email/domain`, {
+      count: updated.length,
+      validateEmail,
+      validateDomain
+    });
+
+    res.json({
+      validated: updated.length,
+      prospects: updated.slice(0, 50)
+    });
+  } catch (error) {
+    console.error("Prospect validation error:", error);
+    res.status(500).json({
+      error: error.message,
+      validated: 0
+    });
+  }
 });
 
 app.get("/api/campaigns", (_req, res) => {
@@ -1635,31 +1786,6 @@ app.post("/api/activity/prune", (req, res) => {
   });
 });
 
-app.post("/api/discovery/companies", (req, res) => {
-  const payload = req.body || {};
-  const count = Math.min(500, Math.max(1, Number(payload.count || 50)));
-
-  const discovered = Array.from({ length: count }, (_, index) => {
-    return buildProspect(index + Date.now(), {
-      industry: payload.industry,
-      country: payload.country
-    });
-  }).map((item) => ({
-    ...item,
-    website: `https://${String(item.company).toLowerCase().replace(/[^a-z0-9]+/g, "")}.com`
-  }));
-
-  appendActivity("discovery.run", `Company discovery generated ${discovered.length} targets`, {
-    count: discovered.length,
-    industry: payload.industry || "mixed"
-  });
-
-  res.json({
-    generated: discovered.length,
-    companies: discovered
-  });
-});
-
 app.post("/api/discovery/tech-detect", (req, res) => {
   const payload = req.body || {};
   if (!payload.url) {
@@ -1673,33 +1799,6 @@ app.post("/api/discovery/tech-detect", (req, res) => {
   });
 
   res.json(result);
-});
-
-app.post("/api/prospects/bulk-generate", (req, res) => {
-  const payload = req.body || {};
-  const count = Math.min(10000, Math.max(1, Number(payload.count || 1000)));
-  const prospects = [];
-
-  for (let i = 0; i < count; i += 1) {
-    const generated = buildProspect(i + Date.now(), {
-      industry: payload.industry,
-      country: payload.country
-    });
-
-    const created = insert("prospects", generated);
-    prospects.push(withScoring(created));
-  }
-
-  appendActivity("prospect.bulk_generated", `Bulk prospect generation completed: ${prospects.length}`, {
-    count: prospects.length,
-    industry: payload.industry || "mixed",
-    country: payload.country || "mixed"
-  });
-
-  res.status(201).json({
-    created: prospects.length,
-    sample: prospects.slice(0, 25)
-  });
 });
 
 app.get("/api/sales-package/assets", (_req, res) => {
@@ -1721,49 +1820,6 @@ app.get("/api/sales-package/sequence", (req, res) => {
 app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
-
-let processingEmailJobs = false;
-setInterval(async () => {
-  if (processingEmailJobs) {
-    return;
-  }
-
-  processingEmailJobs = true;
-  try {
-    const result = await processDueEmailJobs(100);
-    if (result.processed > 0) {
-      appendActivity("email.jobs.autoprocessed", `Auto-processed ${result.processed} email jobs`, {
-        sent: result.sent,
-        failed: result.failed
-      });
-    }
-  } catch (error) {
-    console.error("Email job processing loop failed:", error.message);
-  } finally {
-    processingEmailJobs = false;
-  }
-}, 30000);
-
-let processingDailyAiAutomation = false;
-setInterval(async () => {
-  if (processingDailyAiAutomation) {
-    return;
-  }
-
-  processingDailyAiAutomation = true;
-  try {
-    const result = await runAiAutomationCycle({ mode: "daily" });
-    if (!result.skipped) {
-      console.log(
-        `AI automation daily cycle: outreach=${result.outreachQueued}, followUps=${result.followUpsQueued}, recommendations=${result.recommendations.length}`
-      );
-    }
-  } catch (error) {
-    console.error("AI automation daily cycle failed:", error.message);
-  } finally {
-    processingDailyAiAutomation = false;
-  }
-}, 30 * 60 * 1000);
 
 app.listen(port, () => {
   console.log(`Digital Sales Automation Center listening on http://localhost:${port}`);

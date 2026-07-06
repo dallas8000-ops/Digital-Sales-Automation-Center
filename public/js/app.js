@@ -346,9 +346,11 @@ async function refreshProspects() {
 
   body.innerHTML = prospects
     .map((prospect) => {
+      const badge = prospect.badge || (prospect.dataQuality?.isDemoData ? '⚠ Demo' : '✓ Real');
+      const badgeStyle = prospect.dataQuality?.isReal ? 'color: #4caf50;' : 'color: #ff9800;';
       return `<tr>
         <td><input type="checkbox" data-row-id="${prospect.id}" aria-label="Select prospect row" /></td>
-        <td>${prospect.company}</td>
+        <td>${prospect.company} <span style="font-size: 11px; ${badgeStyle}" title="${prospect.dataQuality?.sources?.join(', ') || 'AI-generated'}">${badge}</span></td>
         <td>${prospect.firstName || ""} ${prospect.lastName || ""}<br><small>${prospect.title || ""}</small></td>
         <td>${prospect.email}</td>
         <td>${prospect.industry || "-"}</td>
@@ -1309,8 +1311,32 @@ async function initAutomationStudio() {
     try {
       const formData = Object.fromEntries(new FormData(event.target).entries());
       formData.count = Number(formData.count || 50);
+      formData.validateDomains = formData.validateDomains === 'on';
+      formData.validateEmails = formData.validateEmails === 'on';
+      
       const result = await api.discoverCompanies(formData);
-      byId("discoveryOutput").textContent = JSON.stringify(result, null, 2);
+      
+      // Display results
+      byId("discoveryOutput").querySelector("pre").textContent = JSON.stringify(result.companies, null, 2);
+      
+      // Show data quality summary
+      if (result.companies && result.companies.length > 0) {
+        const qualityDiv = byId("discoveryDataQuality");
+        const statsDiv = byId("discoveryQualityStats");
+        
+        const realCount = result.companies.filter(c => c.dataQuality?.isReal).length;
+        const demoCount = result.companies.filter(c => c.dataQuality?.isDemoData).length;
+        
+        statsDiv.innerHTML = `
+          <div>✓ Real/Verified: <strong>${realCount}</strong></div>
+          <div>⚠ Demo Data: <strong>${demoCount}</strong></div>
+          <div style="margin-top: 8px; font-size: 11px; color: #888;">
+            ${result.validated ? 'Validation enabled: domains and emails checked' : 'No validation - all marked as demo data'}
+          </div>
+        `;
+        qualityDiv.style.display = 'block';
+      }
+      
       setNotice("studioNotice", `Discovery complete: ${result.generated} companies identified.`);
     } catch (error) {
       setNotice("studioNotice", error.message, "error");
