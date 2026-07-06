@@ -52,39 +52,6 @@
             <pre id="bulkProspectOutput">Run generation to create a large targeted database in your CRM.</pre>
           </article>
 
-          <article class="card">
-            <h3>AI Company Discovery</h3>
-            <form id="discoveryForm">
-              <label>Industry
-                <input name="industry" placeholder="DevOps, SaaS, FinTech" />
-              </label>
-              <label>Country
-                <input name="country" placeholder="United States, Kenya" />
-              </label>
-              <label>Results
-                <input type="number" min="1" max="500" name="count" value="50" required />
-              </label>
-              <label style="display: flex; gap: 8px; align-items: center; margin-top: 12px;">
-                <input type="checkbox" name="validateDomains" />
-                <span>Validate real domains</span>
-              </label>
-              <label style="display: flex; gap: 8px; align-items: center;">
-                <input type="checkbox" name="validateEmails" />
-                <span>Verify email deliverability</span>
-              </label>
-              <div style="font-size: 12px; color: #666; margin-top: 8px;">
-                <strong>Note:</strong> Discovery generates AI-powered prospects. Leave validation unchecked for fastest results. Enable validation to verify domain/email authenticity (slower).
-              </div>
-              <button class="primary" type="submit">Discover Companies</button>
-            </form>
-            <div id="discoveryOutput" style="position: relative;">
-              <pre>Discovery results will appear here.</pre>
-              <div id="discoveryDataQuality" style="margin-top: 12px; padding: 12px; background: #f5f5f5; border-radius: 4px; display: none;">
-                <strong>Data Quality Summary:</strong>
-                <div id="discoveryQualityStats" style="font-size: 12px; margin-top: 8px;"></div>
-              </div>
-            </div>
-          </article>
         </section>
 
         <section class="grid cols-2" style="margin-top:16px;">

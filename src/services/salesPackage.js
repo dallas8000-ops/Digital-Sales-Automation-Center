@@ -95,60 +95,11 @@ function pick(list, indexSeed) {
   return list[indexSeed % list.length];
 }
 
-function pseudoRandom(seed) {
-  const x = Math.sin(seed) * 10000;
-  return x - Math.floor(x);
-}
-
-function pickRandomUnique(list, indexSeed, offset = 0) {
-  // Use seeded pseudo-random to get better distribution
-  const randomValue = pseudoRandom(indexSeed + offset);
-  return list[Math.floor(randomValue * list.length)];
-}
-
 function slugify(text) {
   return String(text)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
-}
-
-function buildProspect(index, options = {}) {
-  const industry = options.industry || pickRandomUnique(industries, index, 1);
-  const country = options.country || pickRandomUnique(countries, index, 2);
-  
-  // Use better randomization to avoid duplicates across batch
-  const firstName = pickRandomUnique(firstNames, index, 3);
-  const lastName = pickRandomUnique(lastNames, index, 4);
-  const role = pickRandomUnique(roles, index, 5);
-  
-  // Spread out company combinations using different offsets
-  const companyPrefix = pickRandomUnique(companyPrefixes, index, 6);
-  const companySuffix = pickRandomUnique(companySuffixes, index, 7);
-  const company = `${companyPrefix} ${companySuffix}`;
-
-  const industryKey = industry.toLowerCase();
-  const techStack = techByIndustry[industryKey] || "Node.js, APIs, AWS";
-  const product = productsByIndustry[industryKey] || "AI Software Operations Studio";
-
-  // Vary engagement level more broadly
-  const engagementLevel = Math.min(20, 1 + Math.floor(pseudoRandom(index + 8) * 20));
-
-  return {
-    company,
-    firstName,
-    lastName,
-    title: role,
-    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${slugify(company)}.com`,
-    industry,
-    country,
-    techStack,
-    engagementLevel,
-    status: "active",
-    stage: "lead",
-    recommendedProduct: product,
-    source: "ai-discovery"
-  };
 }
 
 function detectWebsiteTechnology(url) {
@@ -305,7 +256,6 @@ function buildEmailSequence(productName = "AI Software Operations Studio", role 
 }
 
 module.exports = {
-  buildProspect,
   detectWebsiteTechnology,
   buildSalesAssetPack,
   buildMarketingCalendar,

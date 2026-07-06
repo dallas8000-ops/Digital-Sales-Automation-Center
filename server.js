@@ -18,7 +18,6 @@ const {
   suggestedProductForProspect
 } = require("./src/services/automation");
 const {
-  buildProspect,
   detectWebsiteTechnology,
   buildSalesAssetPack,
   buildMarketingCalendar,
