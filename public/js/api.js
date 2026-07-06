@@ -86,7 +86,6 @@ export const api = {
   getEmailJobs: () => request("/api/email-jobs"),
   processEmailJobs: (data) => request("/api/email-jobs/process", { method: "POST", body: JSON.stringify(data || {}) }),
 
-  bulkGenerateProspects: (data) => request("/api/discovery/bulk-prospects", { method: "POST", body: JSON.stringify(data || {}) }),
   detectWebsiteTech: (data) => request("/api/discovery/tech-detect", { method: "POST", body: JSON.stringify(data) }),
 
   getSalesAssets: () => request("/api/sales-package/assets"),

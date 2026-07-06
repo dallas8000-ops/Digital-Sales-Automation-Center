@@ -1307,20 +1307,6 @@ async function initAutomationStudio() {
     byId("pipelineRecommendationsOutput").textContent = JSON.stringify(result, null, 2);
   }
 
-  byId("bulkProspectForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    try {
-      const formData = Object.fromEntries(new FormData(event.target).entries());
-      formData.count = Number(formData.count || 5000);
-      const result = await api.bulkGenerateProspects(formData);
-      byId("bulkProspectOutput").textContent = JSON.stringify(result, null, 2);
-      setNotice("studioNotice", `Prospect database generated: ${result.created} records added.`);
-    } catch (error) {
-      setNotice("studioNotice", error.message, "error");
-    }
-  });
-
   byId("techDetectForm").addEventListener("submit", async (event) => {
     event.preventDefault();
 

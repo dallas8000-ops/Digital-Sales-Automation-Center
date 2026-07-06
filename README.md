@@ -20,7 +20,6 @@ Digital Sales Automation Center is a Node.js and Express sales workspace for pro
 
 ### Automation Workspace
 
-- Bulk prospect database generation
 - Website technology detection
 - 4-step industry email sequence generation
 - Sales asset pack generation
