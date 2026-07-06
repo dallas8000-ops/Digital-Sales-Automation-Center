@@ -348,12 +348,28 @@ async function refreshProspects() {
     .map((prospect) => {
       const badge = prospect.badge || (prospect.dataQuality?.isDemoData ? '⚠ Demo' : '✓ Real');
       const badgeStyle = prospect.dataQuality?.isReal ? 'color: #4caf50;' : 'color: #ff9800;';
+      
+      // Build verification status display
+      let verificationDisplay = '<span style="color: #999; font-size: 12px;">Unverified</span>';
+      if (prospect.dataQuality?.isVerified) {
+        const emailStatus = prospect.validation?.email?.valid ? '✓ Email' : '✗ Email';
+        const domainStatus = prospect.validation?.domain?.valid ? '✓ Domain' : '✗ Domain';
+        const emailColor = prospect.validation?.email?.valid ? '#4caf50' : '#f44336';
+        const domainColor = prospect.validation?.domain?.valid ? '#4caf50' : '#f44336';
+        verificationDisplay = `<div style="font-size: 11px;">
+          <div style="color: ${emailColor};">${emailStatus}</div>
+          <div style="color: ${domainColor};">${domainStatus}</div>
+          ${prospect.validation?.email?.score ? `<div style="color: #666;">Score: ${prospect.validation.email.score}</div>` : ''}
+        </div>`;
+      }
+      
       return `<tr>
         <td><input type="checkbox" data-row-id="${prospect.id}" aria-label="Select prospect row" /></td>
         <td>${prospect.company} <span style="font-size: 11px; ${badgeStyle}" title="${prospect.dataQuality?.sources?.join(', ') || 'AI-generated'}">${badge}</span></td>
         <td>${prospect.firstName || ""} ${prospect.lastName || ""}<br><small>${prospect.title || ""}</small></td>
         <td>${prospect.email}</td>
         <td>${prospect.industry || "-"}</td>
+        <td>${verificationDisplay}</td>
         <td>${prospect.recommendedProduct || "-"}</td>
         <td><span class="tag ${tierTagClass(prospect.tier)}">${prospect.tier} (${prospect.score})</span></td>
         <td class="flex">
