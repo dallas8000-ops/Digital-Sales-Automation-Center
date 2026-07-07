@@ -38,6 +38,15 @@ class Command(BaseCommand):
 
         raw = json.loads(DB_PATH.read_text(encoding="utf-8"))
 
+        input_counts = {
+            "products": len(raw.get("products", [])),
+            "prospects": len(raw.get("prospects", [])),
+            "activities": len(raw.get("activities", [])),
+            "emailJobs": len(raw.get("emailJobs", [])),
+            "emailEvents": len(raw.get("emailEvents", [])),
+            "config": 1 if isinstance(raw.get("config"), dict) else 0,
+        }
+
         migrated = {
             "products": 0,
             "prospects": 0,
@@ -47,8 +56,17 @@ class Command(BaseCommand):
             "config": 0,
         }
 
+        changes = {
+            "products": {"created": 0, "updated": 0},
+            "prospects": {"created": 0, "updated": 0},
+            "activities": {"created": 0, "updated": 0},
+            "emailJobs": {"created": 0, "updated": 0},
+            "emailEvents": {"created": 0, "updated": 0},
+            "config": {"created": 0, "updated": 0},
+        }
+
         for item in raw.get("products", []):
-            Product.objects.update_or_create(
+            _, created = Product.objects.update_or_create(
                 id=str(item.get("id") or uuid.uuid4()),
                 defaults={
                     "name": item.get("name", ""),
@@ -60,9 +78,10 @@ class Command(BaseCommand):
                 },
             )
             migrated["products"] += 1
+            changes["products"]["created" if created else "updated"] += 1
 
         for item in raw.get("prospects", []):
-            Prospect.objects.update_or_create(
+            _, created = Prospect.objects.update_or_create(
                 id=str(item.get("id") or uuid.uuid4()),
                 defaults={
                     "company": item.get("company", ""),
@@ -86,9 +105,10 @@ class Command(BaseCommand):
                 },
             )
             migrated["prospects"] += 1
+            changes["prospects"]["created" if created else "updated"] += 1
 
         for item in raw.get("activities", []):
-            Activity.objects.update_or_create(
+            _, created = Activity.objects.update_or_create(
                 id=str(item.get("id") or uuid.uuid4()),
                 defaults={
                     "type": item.get("type", "activity"),
@@ -99,9 +119,10 @@ class Command(BaseCommand):
                 },
             )
             migrated["activities"] += 1
+            changes["activities"]["created" if created else "updated"] += 1
 
         for item in raw.get("emailJobs", []):
-            EmailJob.objects.update_or_create(
+            _, created = EmailJob.objects.update_or_create(
                 id=str(item.get("id") or uuid.uuid4()),
                 defaults={
                     "job_type": item.get("type", ""),
@@ -114,9 +135,10 @@ class Command(BaseCommand):
                 },
             )
             migrated["emailJobs"] += 1
+            changes["emailJobs"]["created" if created else "updated"] += 1
 
         for item in raw.get("emailEvents", []):
-            EmailEvent.objects.update_or_create(
+            _, created = EmailEvent.objects.update_or_create(
                 id=str(item.get("id") or uuid.uuid4()),
                 defaults={
                     "event_type": item.get("type", "email.event"),
@@ -125,13 +147,27 @@ class Command(BaseCommand):
                 },
             )
             migrated["emailEvents"] += 1
+            changes["emailEvents"]["created" if created else "updated"] += 1
 
         config = raw.get("config")
         if isinstance(config, dict):
-            AppSetting.objects.update_or_create(key="app_config", defaults={"value": config})
+            _, created = AppSetting.objects.update_or_create(key="app_config", defaults={"value": config})
             migrated["config"] = 1
+            changes["config"]["created" if created else "updated"] += 1
 
-        self.stdout.write(self.style.SUCCESS(f"Migrated JSON data: {migrated}"))
+        output_counts = {
+            "products": Product.objects.count(),
+            "prospects": Prospect.objects.count(),
+            "activities": Activity.objects.count(),
+            "emailJobs": EmailJob.objects.count(),
+            "emailEvents": EmailEvent.objects.count(),
+            "config": AppSetting.objects.filter(key="app_config").count(),
+        }
+
+        self.stdout.write(self.style.SUCCESS(f"Import input counts: {input_counts}"))
+        self.stdout.write(self.style.SUCCESS(f"Import processed counts: {migrated}"))
+        self.stdout.write(self.style.SUCCESS(f"Import create/update counts: {changes}"))
+        self.stdout.write(self.style.SUCCESS(f"Database output counts: {output_counts}"))
 
         if options.get("delete_source"):
             DB_PATH.unlink(missing_ok=True)
