@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import re
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -34,7 +35,7 @@ def env_list(name, default):
     value = os.getenv(name)
     if not value:
         return default
-    return [item.strip() for item in value.split(",") if item.strip()]
+    return [item.strip() for item in re.split(r"[\s,]+", value) if item.strip()]
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
