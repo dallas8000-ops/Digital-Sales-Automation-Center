@@ -1,0 +1,4 @@
+Django==5.2.15
+djangorestframework==3.16.1
+python-dotenv==1.1.1
+stripe==13.0.1

@@ -22,16 +22,16 @@ const deploy = railwayJson.deploy || {};
 
 const nixpacksTomlPath = "nixpacks.toml";
 if (!fs.existsSync(nixpacksTomlPath)) {
-  fail("nixpacks.toml is required to force the Node build provider on Railway");
+  fail("nixpacks.toml is required to force the Python build provider on Railway");
 }
 
 const nixpacksToml = fs.readFileSync(nixpacksTomlPath, "utf8");
-if (!/providers\s*=\s*\[[^\]]*['"]node['"][^\]]*\]/i.test(nixpacksToml)) {
-  fail("nixpacks.toml must explicitly set providers = ['node']");
+if (!/providers\s*=\s*\[[^\]]*['"]python['"][^\]]*\]/i.test(nixpacksToml)) {
+  fail("nixpacks.toml must explicitly set providers = ['python']");
 }
 
-if (String(deploy.startCommand || "").trim() !== "npm start") {
-  fail("railway.json deploy.startCommand must be 'npm start'");
+if (!String(deploy.startCommand || "").includes("python manage.py runserver")) {
+  fail("railway.json deploy.startCommand must run Django via 'python manage.py runserver'");
 }
 
 if (String(deploy.restartPolicyType || "").trim() !== "ON_FAILURE") {
@@ -44,50 +44,6 @@ const forbiddenTrackedPaths = [
   "deploy.config.json",
   ".stripe-installer/deploy-manifest.json",
   ".stripe-installer/stripe-manifest.json",
-  "DJANGO_README.md",
-  "Dockerfile.django",
-  "Procfile.django",
-  "manage.py",
-  "requirements.txt",
-  "campaigns/__init__.py",
-  "campaigns/admin.py",
-  "campaigns/apps.py",
-  "campaigns/models.py",
-  "campaigns/serializers.py",
-  "campaigns/urls.py",
-  "campaigns/views.py",
-  "campaigns/migrations/__init__.py",
-  "dsac/__init__.py",
-  "dsac/celery.py",
-  "dsac/settings.py",
-  "dsac/urls.py",
-  "dsac/wsgi.py",
-  "emails/__init__.py",
-  "emails/admin.py",
-  "emails/apps.py",
-  "emails/models.py",
-  "emails/serializers.py",
-  "emails/services.py",
-  "emails/tasks.py",
-  "emails/urls.py",
-  "emails/views.py",
-  "emails/migrations/__init__.py",
-  "payments/__init__.py",
-  "payments/admin.py",
-  "payments/apps.py",
-  "payments/models.py",
-  "payments/serializers.py",
-  "payments/urls.py",
-  "payments/views.py",
-  "payments/migrations/__init__.py",
-  "prospects/__init__.py",
-  "prospects/admin.py",
-  "prospects/apps.py",
-  "prospects/models.py",
-  "prospects/serializers.py",
-  "prospects/urls.py",
-  "prospects/views.py",
-  "prospects/migrations/__init__.py",
 ];
 
 const trackedFiles = new Set(

@@ -1,12 +1,12 @@
 # Digital Sales Automation Center
 
-Digital Sales Automation Center is a Node.js and Express sales workspace for prospect discovery, outreach operations, CRM management, monthly client subscription plans, and Railway deployment.
+Digital Sales Automation Center is a Django sales workspace for prospect discovery, outreach operations, CRM management, monthly client subscription plans, and Railway deployment.
 
 ## Current Production State
 
 - Production URL: https://digital-sales-automation-center-production.up.railway.app
 - Local development URL: http://localhost:4000
-- Runtime model: Express API + static frontend from `public/`
+- Runtime model: Django API + static frontend from `public/`
 - Data store: JSON database at `data/db.json`
 - Stripe model: subscription checkout for monthly client access plans
 - Deployment source of truth: `railway.json`
@@ -91,21 +91,22 @@ Current monthly starting prices:
 ### Install
 
 ```bash
-npm install
+pip install -r requirements.txt
 ```
 
 ### Run
 
 ```bash
-npm run dev
+python manage.py migrate
+python manage.py runserver 0.0.0.0:4000
 ```
 
 The app listens on port `4000` by default.
 
 ## Scripts
 
-- `npm start` — start the app
-- `npm run dev` — run the app locally
+- `npm start` — start Django app on port 4000
+- `npm run dev` — run Django app locally on port 4000
 - `npm run process:email-jobs` — process queued outbound email jobs
 - `npm run connect:railway-stripe -- --public-url <https-url>` — push Railway vars, optionally create Stripe webhook, and deploy
 - `npm run verify:deploy-guard` — validate deploy guard expectations before shipping

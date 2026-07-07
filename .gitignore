@@ -3,6 +3,10 @@ node_modules/
 .DS_Store
 Thumbs.db
 .vscode/
+.venv/
+__pycache__/
+*.pyc
+db.sqlite3
 
 # Local automation artifacts from external tooling (do not commit to app repo)
 .stripe-installer/

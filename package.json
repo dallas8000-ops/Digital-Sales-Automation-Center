@@ -2,10 +2,10 @@
   "name": "digital-sales-automation-center",
   "version": "1.0.0",
   "description": "Premier sales automation platform for AI-powered prospecting, campaigns, CRM, and proposal workflows",
-  "main": "server.js",
+  "main": "manage.py",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "start": "python manage.py runserver 0.0.0.0:4000",
+    "dev": "python manage.py runserver 0.0.0.0:4000",
     "process:email-jobs": "node scripts/process-email-jobs.js",
     "connect:railway-stripe": "node scripts/connect-railway-stripe.js",
     "verify:deploy-guard": "node scripts/verify-deploy-guard.js"
