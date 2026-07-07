@@ -552,19 +552,6 @@ def api_ai_pipeline_recommendations(request):
 
 @require_http_methods(["POST"])
 @csrf_exempt
-def api_discovery_bulk_prospects(_request):
-	return JsonResponse(
-		{
-			"error": "bulk prospect generation has been removed",
-			"reason": "synthetic prospect data is not allowed",
-			"route": "/api/discovery/bulk-prospects",
-		},
-		status=410,
-	)
-
-
-@require_http_methods(["POST"])
-@csrf_exempt
 def api_discovery_tech_detect(request):
 	payload = parse_json_body(request)
 	url = payload.get("url")

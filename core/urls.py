@@ -18,7 +18,6 @@ urlpatterns = [
     path("api/ai/automation/settings", views.api_ai_automation_settings),
     path("api/ai/automation/run", views.api_ai_automation_run),
     path("api/ai/pipeline-recommendations", views.api_ai_pipeline_recommendations),
-    path("api/discovery/bulk-prospects", views.api_discovery_bulk_prospects),
     path("api/discovery/tech-detect", views.api_discovery_tech_detect),
     path("api/sales-package/assets", views.api_sales_assets),
     path("api/sales-package/calendar", views.api_sales_calendar),
