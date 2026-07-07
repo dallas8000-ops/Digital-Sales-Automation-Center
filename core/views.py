@@ -1,9 +1,10 @@
 import csv
+import hashlib
 import json
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -11,17 +12,24 @@ from urllib.parse import quote, unquote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from django.conf import settings
+from django.core.cache import cache
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.utils import timezone as dj_timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
-from .models import Activity, AppSetting, Campaign, EmailEvent, EmailJob, Product, Prospect, SuppressionList
+from .models import Activity, ApiToken, AppSetting, AuditEvent, Campaign, CampaignTarget, EmailEvent, EmailJob, IdempotencyKey, Product, Prospect, ProspectContact, SuppressionList
 
 
 PUBLIC_DIR = Path(settings.BASE_DIR) / "public"
 APP_CONFIG_KEY = "app_config"
+ANALYTICS_CACHE_KEY = "api.analytics.summary"
+CAMPAIGNS_CACHE_KEY = "api.campaigns.summary"
+CACHE_SECONDS_SHORT = 60
+READ_SCOPE = "read"
+WRITE_SCOPE = "write"
+SEND_SCOPE = "send"
 UNSUBSCRIBE_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 365
 
 DEFAULT_PRODUCTS = [
@@ -87,6 +95,103 @@ DEFAULT_PRODUCTS = [
         "category": "Operations",
         "priceFrom": 0,
         "description": "No published paid Stripe pricing page yet (internal catalog placeholder).",
+    },
+]
+
+DEFAULT_CAMPAIGNS = [
+    {
+        "id": "camp-east-african-fintech",
+        "name": "East African Fintech",
+        "status": "active",
+        "subjectTemplate": "Scaling fintech operations across East Africa",
+        "bodyTemplate": "Operational efficiency and compliance acceleration for regional fintech teams.",
+    },
+    {
+        "id": "camp-eu-east-africa-ops",
+        "name": "European Companies Operating in East Africa",
+        "status": "active",
+        "subjectTemplate": "Regional fintech and API operations support",
+        "bodyTemplate": "Support for Uganda, Kenya, Tanzania, and Rwanda operations with fintech + API transfer + DB ops.",
+    },
+    {
+        "id": "camp-software-companies",
+        "name": "Software Companies",
+        "status": "active",
+        "subjectTemplate": "Deployment and payments automation for software teams",
+        "bodyTemplate": "Improve release flow and recurring revenue operations with deployment and Stripe automation.",
+    },
+]
+
+DEFAULT_CAMPAIGN_TARGETS = [
+    {
+        "campaign": "camp-east-african-fintech",
+        "company": "Flutterwave",
+        "country": "Kenya",
+        "industry": "FinTech",
+        "matchedProducts": ["Elite Fintech Systems"],
+    },
+    {
+        "campaign": "camp-east-african-fintech",
+        "company": "Pesapal",
+        "country": "Kenya",
+        "industry": "FinTech",
+        "matchedProducts": ["Elite Fintech Systems"],
+    },
+    {
+        "campaign": "camp-east-african-fintech",
+        "company": "MFS Africa",
+        "country": "Kenya",
+        "industry": "FinTech",
+        "matchedProducts": ["Elite Fintech Systems"],
+    },
+    {
+        "campaign": "camp-east-african-fintech",
+        "company": "Cellulant",
+        "country": "Kenya",
+        "industry": "FinTech",
+        "matchedProducts": ["Elite Fintech Systems"],
+    },
+    {
+        "campaign": "camp-east-african-fintech",
+        "company": "Asaak",
+        "country": "Uganda",
+        "industry": "FinTech",
+        "matchedProducts": ["Elite Fintech Systems"],
+    },
+    {
+        "campaign": "camp-east-african-fintech",
+        "company": "Numida",
+        "country": "Uganda",
+        "industry": "FinTech",
+        "matchedProducts": ["Elite Fintech Systems"],
+    },
+    {
+        "campaign": "camp-east-african-fintech",
+        "company": "Eversend",
+        "country": "Uganda",
+        "industry": "FinTech",
+        "matchedProducts": ["Elite Fintech Systems"],
+    },
+    {
+        "campaign": "camp-east-african-fintech",
+        "company": "Chipper Cash",
+        "country": "Uganda",
+        "industry": "FinTech",
+        "matchedProducts": ["Elite Fintech Systems"],
+    },
+    {
+        "campaign": "camp-east-african-fintech",
+        "company": "DPO Group",
+        "country": "Kenya",
+        "industry": "FinTech",
+        "matchedProducts": ["Elite Fintech Systems"],
+    },
+    {
+        "campaign": "camp-east-african-fintech",
+        "company": "Onafriq",
+        "country": "Kenya",
+        "industry": "FinTech",
+        "matchedProducts": ["Elite Fintech Systems"],
     },
 ]
 
@@ -239,6 +344,35 @@ def ensure_defaults():
             ]
         )
     AppSetting.objects.get_or_create(key=APP_CONFIG_KEY, defaults={"value": DEFAULT_CONFIG})
+    if Campaign.objects.count() == 0:
+        Campaign.objects.bulk_create(
+            [
+                Campaign(
+                    id=item["id"],
+                    name=item["name"],
+                    subject_template=item.get("subjectTemplate", ""),
+                    body_template=item.get("bodyTemplate", ""),
+                    status=item.get("status", "draft"),
+                    created_at=dj_timezone.now(),
+                    updated_at=dj_timezone.now(),
+                )
+                for item in DEFAULT_CAMPAIGNS
+            ]
+        )
+    for target in DEFAULT_CAMPAIGN_TARGETS:
+        campaign = Campaign.objects.filter(id=target["campaign"]).first()
+        if not campaign:
+            continue
+        CampaignTarget.objects.update_or_create(
+            campaign=campaign,
+            company=target["company"],
+            defaults={
+                "country": target.get("country", ""),
+                "industry": target.get("industry", ""),
+                "matched_products": target.get("matchedProducts", []),
+                "updated_at": dj_timezone.now(),
+            },
+        )
 
 
 def get_config_value():
@@ -270,6 +404,9 @@ def serialize_product(product):
 
 
 def serialize_prospect(item):
+    contacts = {entry.role: entry.full_name for entry in item.contacts.all()}
+    matched_product_name = item.matched_product.name if item.matched_product else item.recommended_product
+    email_campaign_id = item.email_campaign.id if item.email_campaign else ""
     return {
         "id": item.id,
         "createdAt": item.created_at.isoformat(),
@@ -278,14 +415,30 @@ def serialize_prospect(item):
         "firstName": item.first_name,
         "lastName": item.last_name,
         "email": item.email,
+        "verifiedEmail": item.verified_email,
         "website": item.website,
+        "linkedIn": item.linkedin_url,
+        "sourceProvider": item.source_provider,
+        "sourceRecordId": item.source_record_id,
+        "complianceBasis": item.compliance_basis,
+        "complianceVerifiedAt": item.compliance_verified_at.isoformat() if item.compliance_verified_at else None,
         "title": item.title,
         "industry": item.industry,
         "country": item.country,
+        "cto": contacts.get(ProspectContact.Role.CTO, ""),
+        "ceo": contacts.get(ProspectContact.Role.CEO, ""),
+        "headOfEngineering": contacts.get(ProspectContact.Role.HEAD_OF_ENGINEERING, ""),
+        "productDirector": contacts.get(ProspectContact.Role.PRODUCT_DIRECTOR, ""),
+        "partnershipManager": contacts.get(ProspectContact.Role.PARTNERSHIP_MANAGER, ""),
+        "businessDevelopmentDirector": contacts.get(ProspectContact.Role.BUSINESS_DEVELOPMENT_DIRECTOR, ""),
+        "whyFit": item.why_fit,
+        "matchedProduct": matched_product_name,
+        "emailCampaign": email_campaign_id,
+        "followUpStatus": item.follow_up_status,
         "status": item.status,
         "stage": item.stage,
         "engagementLevel": item.engagement_level,
-        "recommendedProduct": item.recommended_product,
+        "recommendedProduct": matched_product_name,
         "dataQuality": item.data_quality or {},
         "validation": item.validation or {},
         "score": item.score,
@@ -300,9 +453,69 @@ def serialize_campaign(item):
         "subjectTemplate": item.subject_template,
         "bodyTemplate": item.body_template,
         "status": item.status,
+        "targets": [
+            {
+                "company": target.company,
+                "country": target.country,
+                "industry": target.industry,
+                "website": target.website,
+                "contactEmail": target.public_contact_email,
+                "fitNotes": target.fit_notes,
+                "matchedProducts": target.matched_products or [],
+            }
+            for target in item.targets.all().order_by("company")
+        ],
         "createdAt": item.created_at.isoformat(),
         "updatedAt": item.updated_at.isoformat(),
     }
+
+
+def payload_looks_fake(payload):
+    suspect_tokens = {"demo", "fake", "test", "example", "sample", "dummy", "noreply", "disposable"}
+    values = [
+        str(payload.get("company") or ""),
+        str(payload.get("email") or ""),
+        str(payload.get("website") or ""),
+        str(payload.get("firstName") or ""),
+        str(payload.get("lastName") or ""),
+    ]
+    text = " ".join(values).lower()
+    return any(token in text for token in suspect_tokens)
+
+
+def upsert_role_contact(prospect, role, value):
+    full_name = str(value or "").strip()
+    if not full_name:
+        ProspectContact.objects.filter(prospect=prospect, role=role).delete()
+        return
+    ProspectContact.objects.update_or_create(
+        prospect=prospect,
+        role=role,
+        defaults={
+            "full_name": full_name,
+            "updated_at": dj_timezone.now(),
+        },
+    )
+
+
+def is_prospect_compliance_ready(prospect, expected_email):
+    validation = prospect.validation or {}
+    email_validation = validation.get("email") if isinstance(validation, dict) else {}
+    email_is_valid = bool(isinstance(email_validation, dict) and email_validation.get("valid") is True)
+    verified_email = str(prospect.verified_email or "").strip().lower()
+    expected = str(expected_email or "").strip().lower()
+
+    return all(
+        [
+            bool(prospect.source_provider.strip()),
+            bool(prospect.source_record_id.strip()),
+            bool(prospect.compliance_basis.strip()),
+            prospect.compliance_verified_at is not None,
+            bool(verified_email),
+            verified_email == expected,
+            email_is_valid,
+        ]
+    )
 
 
 def serialize_activity(item):
@@ -327,20 +540,100 @@ def append_activity(event_type, message, metadata=None):
     )
 
 
+def append_audit(event_type, actor, resource_type, resource_id, metadata=None):
+    AuditEvent.objects.create(
+        event_type=event_type,
+        actor=str(actor or "system"),
+        resource_type=str(resource_type or ""),
+        resource_id=str(resource_id or ""),
+        metadata=metadata or {},
+        created_at=dj_timezone.now(),
+    )
+
+
+def resolve_auth_identity(request):
+    configured_key = os.getenv("ADMIN_API_KEY", "").strip()
+    provided_key = (
+        request.headers.get("X-API-Key", "").strip()
+        or request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+        or str(request.GET.get("apiKey") or "").strip()
+    )
+
+    if configured_key and provided_key == configured_key:
+        return {"ok": True, "role": ApiToken.Role.ADMIN, "actor": "admin_api_key"}
+
+    token = ApiToken.objects.filter(token=provided_key, is_active=True).first()
+    if token:
+        return {"ok": True, "role": token.role, "actor": f"api_token:{token.name}"}
+
+    return {"ok": False, "role": None, "actor": "anonymous"}
+
+
+def role_scopes(role):
+    if role == ApiToken.Role.ADMIN:
+        return {READ_SCOPE, WRITE_SCOPE, SEND_SCOPE}
+    if role == ApiToken.Role.OUTREACH:
+        return {READ_SCOPE, SEND_SCOPE}
+    if role == ApiToken.Role.ANALYST:
+        return {READ_SCOPE, WRITE_SCOPE}
+    return {READ_SCOPE}
+
+
+def required_scope_for_request(request):
+    path = request.path
+    method = request.method.upper()
+    if path.endswith("/api/email-jobs/process"):
+        return SEND_SCOPE
+    if method in {"POST", "PATCH", "PUT", "DELETE"}:
+        return WRITE_SCOPE
+    return READ_SCOPE
+
+
+def request_payload_hash(payload):
+    serialized = json.dumps(payload or {}, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def get_idempotency_replay(request, endpoint, payload):
+    key = request.headers.get("Idempotency-Key", "").strip()
+    if not key:
+        return None
+
+    req_hash = request_payload_hash(payload)
+    stored = IdempotencyKey.objects.filter(key=key, endpoint=endpoint).first()
+    if not stored:
+        return None
+    if stored.request_hash != req_hash:
+        return JsonResponse({"error": "idempotency key reuse with different payload"}, status=409)
+    return JsonResponse(stored.response_body or {}, status=stored.response_code)
+
+
+def save_idempotency_result(request, endpoint, payload, status_code, body):
+    key = request.headers.get("Idempotency-Key", "").strip()
+    if not key:
+        return
+    IdempotencyKey.objects.update_or_create(
+        key=key,
+        endpoint=endpoint,
+        defaults={
+            "request_hash": request_payload_hash(payload),
+            "response_code": int(status_code),
+            "response_body": body,
+            "updated_at": dj_timezone.now(),
+        },
+    )
+
+
 def require_api_key(view_func):
     @wraps(view_func)
     def wrapped(request, *args, **kwargs):
-        configured_key = os.getenv("ADMIN_API_KEY", "").strip()
-        if not configured_key:
-            return JsonResponse({"error": "ADMIN_API_KEY is not configured"}, status=503)
-
-        provided_key = (
-            request.headers.get("X-API-Key", "").strip()
-            or request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
-            or str(request.GET.get("apiKey") or "").strip()
-        )
-        if provided_key != configured_key:
+        identity = resolve_auth_identity(request)
+        if not identity.get("ok"):
             return JsonResponse({"error": "unauthorized"}, status=401)
+        required_scope = required_scope_for_request(request)
+        if required_scope not in role_scopes(identity.get("role")):
+            return JsonResponse({"error": "forbidden", "requiredScope": required_scope}, status=403)
+        request.auth_actor = identity.get("actor")
         return view_func(request, *args, **kwargs)
 
     return wrapped
@@ -388,6 +681,10 @@ def api_products(_request):
 
 @require_GET
 def api_analytics(_request):
+    cached = cache.get(ANALYTICS_CACHE_KEY)
+    if cached:
+        return JsonResponse(cached)
+
     prospects = list(Prospect.objects.all())
     hot_leads = sum(1 for item in prospects if (item.tier or "").lower() == "hot")
     warm_leads = sum(1 for item in prospects if (item.tier or "").lower() == "warm")
@@ -395,21 +692,21 @@ def api_analytics(_request):
     pipeline_value = sum(float(item.score or 0) * 100 for item in prospects)
     recent_activity = [serialize_activity(item) for item in Activity.objects.all().order_by("-created_at")[:10]]
 
-    return JsonResponse(
-        {
-            "prospects": len(prospects),
-            "emailsSent": EmailEvent.objects.filter(event_type="email.sent").count(),
-            "meetings": demos_scheduled,
-            "pipelineValue": pipeline_value,
-            "replyRate": 0,
-            "meetingRate": 0,
-            "openInquiries": 0,
-            "hotLeads": hot_leads,
-            "warmLeads": warm_leads,
-            "demosScheduled": demos_scheduled,
-            "recentActivity": recent_activity,
-        }
-    )
+    payload = {
+        "prospects": len(prospects),
+        "emailsSent": EmailEvent.objects.filter(event_type="email.sent").count(),
+        "meetings": demos_scheduled,
+        "pipelineValue": pipeline_value,
+        "replyRate": 0,
+        "meetingRate": 0,
+        "openInquiries": 0,
+        "hotLeads": hot_leads,
+        "warmLeads": warm_leads,
+        "demosScheduled": demos_scheduled,
+        "recentActivity": recent_activity,
+    }
+    cache.set(ANALYTICS_CACHE_KEY, payload, CACHE_SECONDS_SHORT)
+    return JsonResponse(payload)
 
 
 @require_GET
@@ -489,8 +786,33 @@ def api_prospects(request):
         return JsonResponse([serialize_prospect(item) for item in queryset], safe=False)
 
     payload = parse_json_body(request)
+    replay = get_idempotency_replay(request, "api_prospects_post", payload)
+    if replay is not None:
+        return replay
     if not payload.get("company") or not payload.get("email"):
         return JsonResponse({"error": "company and email are required"}, status=400)
+    if payload_looks_fake(payload):
+        return JsonResponse(
+            {
+                "error": "Synthetic/demo prospect data is not allowed",
+                "reason": "Provide real, verifiable prospect records only",
+                "saved": False,
+            },
+            status=422,
+        )
+
+    source_provider = str(payload.get("sourceProvider") or "").strip()
+    source_record_id = str(payload.get("sourceRecordId") or "").strip()
+    compliance_basis = str(payload.get("complianceBasis") or "").strip()
+    allowed_bases = {choice for choice, _ in Prospect.ComplianceBasis.choices}
+    if not source_provider or not source_record_id or compliance_basis not in allowed_bases:
+        return JsonResponse(
+            {
+                "error": "sourceProvider, sourceRecordId, and valid complianceBasis are required",
+                "requiredComplianceBasis": sorted(allowed_bases),
+            },
+            status=400,
+        )
 
     api_key = os.getenv("HUNTER_API_KEY", "").strip()
     if not api_key:
@@ -534,20 +856,39 @@ def api_prospects(request):
         )
 
     score = int(payload.get("score") or 30)
+    matched_product_id = str(payload.get("matchedProductId") or "").strip()
+    matched_product = Product.objects.filter(id=matched_product_id).first() if matched_product_id else None
+    if not matched_product:
+        requested_product = str(payload.get("recommendedProduct") or payload.get("matchedProduct") or "").strip().lower()
+        if requested_product:
+            matched_product = Product.objects.filter(name__iexact=requested_product).first()
+    campaign_id = str(payload.get("emailCampaignId") or payload.get("emailCampaign") or "").strip()
+    campaign = Campaign.objects.filter(id=campaign_id).first() if campaign_id else None
+
     item = Prospect.objects.create(
         id=str(uuid.uuid4()),
         company=payload.get("company"),
         first_name=payload.get("firstName") or "",
         last_name=payload.get("lastName") or "",
         email=payload.get("email"),
+        verified_email=payload.get("verifiedEmail") or payload.get("email"),
         website=payload.get("website") or "",
+        linkedin_url=payload.get("linkedIn") or payload.get("linkedin") or "",
+        source_provider=source_provider,
+        source_record_id=source_record_id,
+        compliance_basis=compliance_basis,
+        compliance_verified_at=dj_timezone.now(),
         title=payload.get("title") or "",
         industry=payload.get("industry") or "",
         country=payload.get("country") or "",
+        why_fit=payload.get("whyFit") or "",
+        matched_product=matched_product,
+        email_campaign=campaign,
+        follow_up_status=payload.get("followUpStatus") or Prospect.FollowUpStatus.NOT_STARTED,
         status=payload.get("status") or "new",
         stage=payload.get("stage") or "lead",
         engagement_level=int(payload.get("engagementLevel") or 0),
-        recommended_product=payload.get("recommendedProduct") or "AI Software Operations Studio",
+        recommended_product=(matched_product.name if matched_product else (payload.get("recommendedProduct") or "AI Software Operations Studio")),
         data_quality={
             "isReal": True,
             "isVerified": True,
@@ -563,8 +904,25 @@ def api_prospects(request):
         updated_at=dj_timezone.now(),
     )
 
+    upsert_role_contact(item, ProspectContact.Role.CTO, payload.get("cto"))
+    upsert_role_contact(item, ProspectContact.Role.CEO, payload.get("ceo"))
+    upsert_role_contact(item, ProspectContact.Role.HEAD_OF_ENGINEERING, payload.get("headOfEngineering"))
+    upsert_role_contact(item, ProspectContact.Role.PRODUCT_DIRECTOR, payload.get("productDirector"))
+    upsert_role_contact(item, ProspectContact.Role.PARTNERSHIP_MANAGER, payload.get("partnershipManager"))
+    upsert_role_contact(item, ProspectContact.Role.BUSINESS_DEVELOPMENT_DIRECTOR, payload.get("businessDevelopmentDirector"))
+
     append_activity("prospect.created", f"Real verified prospect added: {item.company}", {"prospectId": item.id})
-    return JsonResponse(serialize_prospect(item), status=201)
+    append_audit(
+        "prospect.created",
+        getattr(request, "auth_actor", "system"),
+        "prospect",
+        item.id,
+        {"company": item.company, "complianceBasis": item.compliance_basis},
+    )
+    cache.delete(ANALYTICS_CACHE_KEY)
+    response_payload = serialize_prospect(item)
+    save_idempotency_result(request, "api_prospects_post", payload, 201, response_payload)
+    return JsonResponse(response_payload, status=201)
 
 
 @require_GET
@@ -663,10 +1021,18 @@ def api_prospects_export_csv(_request):
 @csrf_exempt
 def api_campaigns(request):
     if request.method == "GET":
+        cached = cache.get(CAMPAIGNS_CACHE_KEY)
+        if cached:
+            return JsonResponse(cached, safe=False)
         campaigns = Campaign.objects.all().order_by("-created_at")
-        return JsonResponse([serialize_campaign(item) for item in campaigns], safe=False)
+        payload = [serialize_campaign(item) for item in campaigns]
+        cache.set(CAMPAIGNS_CACHE_KEY, payload, CACHE_SECONDS_SHORT)
+        return JsonResponse(payload, safe=False)
 
     payload = parse_json_body(request)
+    replay = get_idempotency_replay(request, "api_campaigns_post", payload)
+    if replay is not None:
+        return replay
     name = str(payload.get("name") or "").strip()
     if not name:
         return JsonResponse({"error": "name is required"}, status=400)
@@ -681,7 +1047,11 @@ def api_campaigns(request):
         updated_at=dj_timezone.now(),
     )
     append_activity("campaign.created", f"Campaign created: {item.name}", {"campaignId": item.id})
-    return JsonResponse(serialize_campaign(item), status=201)
+    append_audit("campaign.created", getattr(request, "auth_actor", "system"), "campaign", item.id, {"name": item.name})
+    cache.delete(CAMPAIGNS_CACHE_KEY)
+    response_payload = serialize_campaign(item)
+    save_idempotency_result(request, "api_campaigns_post", payload, 201, response_payload)
+    return JsonResponse(response_payload, status=201)
 
 
 @require_GET
@@ -822,10 +1192,11 @@ def api_email_jobs_process(request):
     requested_limit = int(payload.get("limit") or 500)
     send_rate_cap = get_send_rate_cap()
     effective_limit = min(max(1, requested_limit), send_rate_cap)
-    jobs = list(EmailJob.objects.filter(status="pending").order_by("created_at")[:effective_limit])
+    jobs = list(EmailJob.objects.filter(status="pending", available_at__lte=dj_timezone.now()).order_by("created_at")[:effective_limit])
     sent = 0
     failed = 0
     suppressed = 0
+    blocked_compliance = 0
     processed = 0
     now = dj_timezone.now()
 
@@ -847,22 +1218,61 @@ def api_email_jobs_process(request):
             suppressed += 1
             continue
 
-        payload_with_unsub = dict(job.payload or {})
-        payload_with_unsub["unsubscribeUrl"] = build_unsubscribe_url(email)
-        payload_with_unsub["unsubscribeTokenGeneratedAt"] = now_iso()
-        job.payload = payload_with_unsub
-        job.status = "sent"
-        job.processed_at = now
-        job.updated_at = now
-        job.save(update_fields=["status", "processed_at", "updated_at", "payload"])
-        EmailEvent.objects.create(
-            id=str(uuid.uuid4()),
-            event_type="email.sent",
-            job=job,
-            metadata={"jobId": job.id, "toEmail": email, "unsubscribeUrl": payload_with_unsub["unsubscribeUrl"]},
-            created_at=now,
-        )
-        sent += 1
+        prospect_id = str((job.payload or {}).get("prospectId") or "").strip()
+        prospect = Prospect.objects.filter(id=prospect_id).first() if prospect_id else None
+        if not prospect or not is_prospect_compliance_ready(prospect, email):
+            job.status = "blocked_compliance"
+            job.processed_at = now
+            job.updated_at = now
+            job.save(update_fields=["status", "processed_at", "updated_at"])
+            EmailEvent.objects.create(
+                id=str(uuid.uuid4()),
+                event_type="email.blocked_compliance",
+                job=job,
+                metadata={"jobId": job.id, "toEmail": email, "prospectId": prospect_id or None},
+                created_at=now,
+            )
+            blocked_compliance += 1
+            continue
+
+        try:
+            payload_with_unsub = dict(job.payload or {})
+            payload_with_unsub["unsubscribeUrl"] = build_unsubscribe_url(email)
+            payload_with_unsub["unsubscribeTokenGeneratedAt"] = now_iso()
+            job.payload = payload_with_unsub
+            job.status = "sent"
+            job.processed_at = now
+            job.updated_at = now
+            job.last_error = ""
+            job.save(update_fields=["status", "processed_at", "updated_at", "payload", "last_error"])
+            EmailEvent.objects.create(
+                id=str(uuid.uuid4()),
+                event_type="email.sent",
+                job=job,
+                metadata={"jobId": job.id, "toEmail": email, "unsubscribeUrl": payload_with_unsub["unsubscribeUrl"]},
+                created_at=now,
+            )
+            sent += 1
+        except Exception as exc:
+            job.retry_count = int(job.retry_count or 0) + 1
+            job.last_error = str(exc)
+            job.updated_at = now
+            if job.retry_count >= int(job.max_retries or 3):
+                job.status = "failed"
+                job.processed_at = now
+                job.available_at = now
+            else:
+                job.status = "pending"
+                job.available_at = now + timedelta(minutes=min(30, 5 * job.retry_count))
+            job.save(update_fields=["retry_count", "last_error", "updated_at", "status", "processed_at", "available_at"])
+            EmailEvent.objects.create(
+                id=str(uuid.uuid4()),
+                event_type="email.retry_scheduled" if job.status == "pending" else "email.failed",
+                job=job,
+                metadata={"jobId": job.id, "toEmail": email, "retryCount": job.retry_count, "error": job.last_error},
+                created_at=now,
+            )
+            failed += 1
 
     append_activity(
         "email.jobs.processed",
@@ -874,9 +1284,18 @@ def api_email_jobs_process(request):
             "processed": processed,
             "sent": sent,
             "suppressed": suppressed,
+            "blockedCompliance": blocked_compliance,
             "failed": failed,
         },
     )
+    append_audit(
+        "email.jobs.processed",
+        getattr(request, "auth_actor", "system"),
+        "email_jobs",
+        "batch",
+        {"processed": processed, "sent": sent, "suppressed": suppressed, "blockedCompliance": blocked_compliance, "failed": failed},
+    )
+    cache.delete(ANALYTICS_CACHE_KEY)
     remaining = EmailJob.objects.filter(status="pending").count()
     return JsonResponse(
         {
@@ -886,6 +1305,7 @@ def api_email_jobs_process(request):
             "processed": processed,
             "sent": sent,
             "suppressed": suppressed,
+            "blockedCompliance": blocked_compliance,
             "failed": failed,
             "remaining": remaining,
         }
