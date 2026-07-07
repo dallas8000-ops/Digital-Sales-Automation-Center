@@ -1,5 +1,27 @@
+function getApiBaseUrl() {
+  const configured = (globalThis.DSAC_API_BASE_URL || "").trim();
+  if (configured) {
+    return configured.replace(/\/$/, "");
+  }
+
+  const host = (globalThis.location && globalThis.location.hostname) || "";
+  if (host === "gilliomfrontlinedigital.com" || host === "www.gilliomfrontlinedigital.com") {
+    return "https://api.gilliomfrontlinedigital.com";
+  }
+
+  return "";
+}
+
+function buildUrl(path) {
+  const base = getApiBaseUrl();
+  if (!base) {
+    return path;
+  }
+  return `${base}${path}`;
+}
+
 async function request(url, options = {}) {
-  const response = await fetch(url, {
+  const response = await fetch(buildUrl(url), {
     headers: {
       "Content-Type": "application/json"
     },

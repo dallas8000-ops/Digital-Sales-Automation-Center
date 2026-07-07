@@ -4,6 +4,13 @@ function byId(id) {
   return document.getElementById(id);
 }
 
+function createAlertNode(message, type = "success") {
+  const alert = document.createElement("div");
+  alert.className = `alert ${type}`;
+  alert.textContent = String(message || "");
+  return alert;
+}
+
 function setNotice(containerId, message, type = "success") {
   const el = byId(containerId);
   if (!el) {
@@ -11,11 +18,88 @@ function setNotice(containerId, message, type = "success") {
   }
 
   if (!message) {
-    el.innerHTML = "";
+    el.replaceChildren();
     return;
   }
 
-  el.innerHTML = `<div class="alert ${type}">${message}</div>`;
+  el.replaceChildren(createAlertNode(message, type));
+}
+
+function getSubmitControl(form) {
+  return form?.querySelector('button[type="submit"], button:not([type]), input[type="submit"]') || null;
+}
+
+function resolveAsyncTrigger(event) {
+  if (!event) {
+    return null;
+  }
+
+  if (event.type === "submit") {
+    return event.submitter || getSubmitControl(event.currentTarget);
+  }
+
+  if (event.type === "click") {
+    return event.target?.closest("button") || event.currentTarget;
+  }
+
+  return event.currentTarget || null;
+}
+
+function setBusyState(control, pendingText = "Working...") {
+  if (!control || control.dataset.busy === "true") {
+    return null;
+  }
+
+  const target = control;
+  target.dataset.busy = "true";
+  target.dataset.originalDisabled = String(Boolean(target.disabled));
+  target.disabled = true;
+  target.classList.add("is-busy");
+  target.setAttribute("aria-busy", "true");
+
+  const tagName = target.tagName;
+  if (tagName === "INPUT") {
+    target.dataset.originalValue = target.value;
+    target.value = pendingText;
+  } else {
+    target.dataset.originalText = target.textContent || "";
+    target.textContent = pendingText;
+  }
+
+  return () => {
+    if (target.tagName === "INPUT") {
+      target.value = target.dataset.originalValue || "";
+      delete target.dataset.originalValue;
+    } else {
+      target.textContent = target.dataset.originalText || "";
+      delete target.dataset.originalText;
+    }
+
+    target.disabled = target.dataset.originalDisabled === "true";
+    delete target.dataset.originalDisabled;
+    delete target.dataset.busy;
+    target.classList.remove("is-busy");
+    target.removeAttribute("aria-busy");
+  };
+}
+
+function withAsyncAction(handler, options = {}) {
+  return async function wrappedAsyncAction(event) {
+    const trigger = options.getTrigger ? options.getTrigger(event) : resolveAsyncTrigger(event);
+    const releaseBusyState = setBusyState(trigger, options.pendingText || "Working...");
+
+    if (trigger && !releaseBusyState) {
+      return;
+    }
+
+    try {
+      return await handler.call(this, event);
+    } finally {
+      if (releaseBusyState) {
+        releaseBusyState();
+      }
+    }
+  };
 }
 
 function formatCurrency(amount) {
@@ -57,12 +141,72 @@ function setAllRowsSelected(tableBodyId, selected) {
   });
 }
 
-function safeConfirm(message) {
+let confirmDialogElements;
+
+function ensureConfirmDialog() {
+  if (confirmDialogElements) {
+    return confirmDialogElements;
+  }
+
+  const dialog = document.createElement("dialog");
+  dialog.className = "confirm-dialog";
+  dialog.innerHTML = `
+    <form method="dialog" class="confirm-dialog__panel">
+      <h2 class="confirm-dialog__title">Confirm action</h2>
+      <p class="confirm-dialog__message"></p>
+      <div class="confirm-dialog__actions">
+        <button type="button" class="secondary confirm-dialog__cancel">Cancel</button>
+        <button type="submit" class="primary confirm-dialog__confirm" value="confirm">Confirm</button>
+      </div>
+    </form>
+  `;
+
+  document.body.appendChild(dialog);
+
+  confirmDialogElements = {
+    dialog,
+    message: dialog.querySelector(".confirm-dialog__message"),
+    cancel: dialog.querySelector(".confirm-dialog__cancel"),
+    confirm: dialog.querySelector(".confirm-dialog__confirm")
+  };
+
+  return confirmDialogElements;
+}
+
+async function safeConfirm(message) {
   try {
-    return typeof globalThis.confirm === "function" ? globalThis.confirm(message) : true;
+    if (typeof HTMLDialogElement === "undefined") {
+      return typeof globalThis.confirm === "function" ? globalThis.confirm(message) : true;
+    }
+
+    const { dialog, message: messageNode, cancel } = ensureConfirmDialog();
+    messageNode.textContent = String(message || "");
+
+    return await new Promise((resolve) => {
+      const complete = (result) => {
+        dialog.removeEventListener("close", handleClose);
+        dialog.removeEventListener("cancel", handleCancel);
+        cancel.removeEventListener("click", handleCancelClick);
+        resolve(result);
+      };
+
+      const handleClose = () => complete(dialog.returnValue === "confirm");
+      const handleCancel = (event) => {
+        event.preventDefault();
+        dialog.close("cancel");
+      };
+      const handleCancelClick = () => dialog.close("cancel");
+
+      dialog.addEventListener("close", handleClose, { once: true });
+      dialog.addEventListener("cancel", handleCancel, { once: true });
+      cancel.addEventListener("click", handleCancelClick, { once: true });
+
+      dialog.showModal();
+      cancel.focus();
+    });
   } catch (error) {
     console.warn("Confirmation dialog not available in this browser context.", error);
-    return true;
+    return typeof globalThis.confirm === "function" ? globalThis.confirm(message) : true;
   }
 }
 
@@ -145,6 +289,93 @@ function renderCampaignPreview(result, mode = "send") {
   `;
 }
 
+function setupLiveRegions() {
+  [
+    "dashboardNotice",
+    "prospectNotice",
+    "campaignNotice",
+    "inquiryNotice",
+    "proposalNotice",
+    "demoNotice",
+    "studioNotice",
+    "settingsNotice"
+  ].forEach((id) => {
+    const node = byId(id);
+    if (!node) {
+      return;
+    }
+
+    node.setAttribute("role", "status");
+    node.setAttribute("aria-live", "polite");
+    node.setAttribute("aria-atomic", "true");
+  });
+
+  const globalError = byId("globalError");
+  if (globalError) {
+    globalError.setAttribute("role", "alert");
+    globalError.setAttribute("aria-live", "assertive");
+    globalError.setAttribute("aria-atomic", "true");
+  }
+}
+
+function setupResponsiveSidebar() {
+  const sidebar = document.querySelector(".sidebar");
+  const navList = sidebar?.querySelector(".nav-list");
+  if (!sidebar || !navList) {
+    return;
+  }
+
+  if (!navList.id) {
+    navList.id = "sidebar-navigation";
+  }
+
+  let toggle = sidebar.querySelector(".sidebar-toggle");
+  if (!toggle) {
+    toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "secondary sidebar-toggle";
+    toggle.setAttribute("aria-controls", navList.id);
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.textContent = "Menu";
+    navList.before(toggle);
+  }
+
+  const syncSidebarState = (open) => {
+    sidebar.classList.toggle("is-open", open);
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.textContent = open ? "Close menu" : "Menu";
+  };
+
+  toggle.addEventListener("click", () => {
+    syncSidebarState(!sidebar.classList.contains("is-open"));
+  });
+
+  navList.addEventListener("click", (event) => {
+    if (!event.target.closest("a")) {
+      return;
+    }
+
+    if (globalThis.matchMedia?.("(max-width: 960px)").matches) {
+      syncSidebarState(false);
+    }
+  });
+
+  const mediaQuery = globalThis.matchMedia?.("(max-width: 960px)");
+  const handleViewportChange = (event) => {
+    if (!event.matches) {
+      syncSidebarState(true);
+      return;
+    }
+
+    syncSidebarState(false);
+  };
+
+  if (mediaQuery) {
+    handleViewportChange(mediaQuery);
+    mediaQuery.addEventListener("change", handleViewportChange);
+  }
+}
+
 function activateNav() {
   const page = document.body.dataset.page;
   const links = document.querySelectorAll(".nav-list a");
@@ -224,7 +455,7 @@ async function initDashboard() {
   }
 
   if (deleteSelectedBtn) {
-    deleteSelectedBtn.addEventListener("click", async () => {
+    deleteSelectedBtn.addEventListener("click", withAsyncAction(async () => {
       const ids = getSelectedRowIds("recentActivity");
 
       if (ids.length === 0) {
@@ -232,7 +463,7 @@ async function initDashboard() {
         return;
       }
 
-      const confirmed = safeConfirm(`Delete ${ids.length} selected activity log(s)?`);
+      const confirmed = await safeConfirm(`Delete ${ids.length} selected activity log(s)?`);
       if (!confirmed) return;
 
       try {
@@ -242,11 +473,11 @@ async function initDashboard() {
       } catch (error) {
         setNotice("dashboardNotice", error.message, "error");
       }
-    });
+    }, { pendingText: "Deleting..." }));
   }
 
   if (trimBtn) {
-    trimBtn.addEventListener("click", async () => {
+    trimBtn.addEventListener("click", withAsyncAction(async () => {
       const keepLast = Number(trimKeepLastInput?.value || 200);
 
       if (!Number.isFinite(keepLast) || keepLast < 10) {
@@ -264,10 +495,10 @@ async function initDashboard() {
       } catch (error) {
         setNotice("dashboardNotice", error.message, "error");
       }
-    });
+    }, { pendingText: "Trimming..." }));
   }
 
-  activityEl.addEventListener("click", async (event) => {
+  activityEl.addEventListener("click", withAsyncAction(async (event) => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
 
@@ -277,7 +508,7 @@ async function initDashboard() {
 
     try {
       if (action === "delete") {
-        const confirmed = safeConfirm("Delete this log entry?");
+        const confirmed = await safeConfirm("Delete this log entry?");
         if (!confirmed) return;
         await api.deleteActivity(id);
         setNotice("dashboardNotice", "Log entry deleted.");
@@ -304,7 +535,7 @@ async function initDashboard() {
     } catch (error) {
       setNotice("dashboardNotice", error.message, "error");
     }
-  });
+  }, { getTrigger: (event) => event.target.closest("button[data-action]") }));
 }
 
 function tierTagClass(tier) {
@@ -442,7 +673,7 @@ async function initProspects() {
   await refreshProspects();
   setSelectedProspect(globalThis.__selectedProspect || null);
 
-  form.addEventListener("submit", async (event) => {
+  form.addEventListener("submit", withAsyncAction(async (event) => {
     event.preventDefault();
 
     try {
@@ -456,19 +687,19 @@ async function initProspects() {
     } catch (error) {
       setNotice("prospectNotice", error.message, "error");
     }
-  });
+  }, { pendingText: "Saving..." }));
 
   if (filterForm) {
-    filterForm.addEventListener("submit", async (event) => {
+    filterForm.addEventListener("submit", withAsyncAction(async (event) => {
       event.preventDefault();
       syncFilterStateFromForm();
       await refreshProspects();
-    });
+    }, { pendingText: "Filtering..." }));
   }
 
   const resetFiltersBtn = byId("prospectResetFilters");
   if (resetFiltersBtn) {
-    resetFiltersBtn.addEventListener("click", async () => {
+    resetFiltersBtn.addEventListener("click", withAsyncAction(async () => {
       if (filterForm) {
         filterForm.reset();
       }
@@ -488,27 +719,27 @@ async function initProspects() {
       };
 
       await refreshProspects();
-    });
+    }, { pendingText: "Resetting..." }));
   }
 
   const prevBtn = byId("prospectPrevPage");
   if (prevBtn) {
-    prevBtn.addEventListener("click", async () => {
+    prevBtn.addEventListener("click", withAsyncAction(async () => {
       const state = globalThis.__prospectQueryState;
       if (state.page > 1) {
         state.page -= 1;
         await refreshProspects();
       }
-    });
+    }, { pendingText: "Loading..." }));
   }
 
   const nextBtn = byId("prospectNextPage");
   if (nextBtn) {
-    nextBtn.addEventListener("click", async () => {
+    nextBtn.addEventListener("click", withAsyncAction(async () => {
       const state = globalThis.__prospectQueryState;
       state.page += 1;
       await refreshProspects();
-    });
+    }, { pendingText: "Loading..." }));
   }
 
   if (selectAllBtn) {
@@ -536,7 +767,7 @@ async function initProspects() {
   }
 
   if (deleteSelectedBtn) {
-    deleteSelectedBtn.addEventListener("click", async () => {
+    deleteSelectedBtn.addEventListener("click", withAsyncAction(async () => {
       const state = globalThis.__prospectQueryState || {};
       const query = {
         search: state.search || "",
@@ -551,7 +782,7 @@ async function initProspects() {
       };
 
       if (globalThis.__prospectAllResultsSelected) {
-        const confirmed = safeConfirm("Delete all filtered prospects across all pages?");
+        const confirmed = await safeConfirm("Delete all filtered prospects across all pages?");
         if (!confirmed) return;
 
         try {
@@ -578,7 +809,7 @@ async function initProspects() {
         return;
       }
 
-      const confirmed = safeConfirm(`Delete ${ids.length} selected prospect(s)?`);
+      const confirmed = await safeConfirm(`Delete ${ids.length} selected prospect(s)?`);
       if (!confirmed) return;
 
       try {
@@ -597,7 +828,7 @@ async function initProspects() {
       } catch (error) {
         setNotice("prospectNotice", error.message, "error");
       }
-    });
+    }, { pendingText: "Deleting..." }));
   }
 
   byId("prospectTableBody").addEventListener("change", (event) => {
@@ -632,7 +863,7 @@ async function initProspects() {
   }
 
   if (aiDraftForm) {
-    aiDraftForm.addEventListener("submit", async (event) => {
+    aiDraftForm.addEventListener("submit", withAsyncAction(async (event) => {
       event.preventDefault();
 
       const selectedProspect = globalThis.__selectedProspect;
@@ -655,10 +886,10 @@ async function initProspects() {
       } catch (error) {
         setNotice("prospectNotice", error.message, "error");
       }
-    });
+    }, { pendingText: "Generating..." }));
   }
 
-  byId("prospectTableBody").addEventListener("click", async (event) => {
+  byId("prospectTableBody").addEventListener("click", withAsyncAction(async (event) => {
     const button = event.target.closest("button");
     if (!button) return;
 
@@ -694,7 +925,7 @@ async function initProspects() {
     } catch (error) {
       setNotice("prospectNotice", error.message, "error");
     }
-  });
+  }, { getTrigger: (event) => event.target.closest("button") }));
 }
 
 async function refreshCampaigns() {
@@ -739,7 +970,7 @@ async function initCampaigns() {
   }
   await refreshCampaigns();
 
-  form.addEventListener("submit", async (event) => {
+  form.addEventListener("submit", withAsyncAction(async (event) => {
     event.preventDefault();
     try {
       const data = Object.fromEntries(new FormData(form).entries());
@@ -750,9 +981,9 @@ async function initCampaigns() {
     } catch (error) {
       setNotice("campaignNotice", error.message, "error");
     }
-  });
+  }, { pendingText: "Saving..." }));
 
-  byId("campaignTableBody").addEventListener("click", async (event) => {
+  byId("campaignTableBody").addEventListener("click", withAsyncAction(async (event) => {
     const button = event.target.closest("button");
     if (!button) return;
 
@@ -796,7 +1027,7 @@ async function initCampaigns() {
       }
 
       if (button.dataset.action === "delete") {
-        const confirmed = safeConfirm("Delete this campaign?");
+        const confirmed = await safeConfirm("Delete this campaign?");
         if (!confirmed) return;
 
         await api.deleteCampaign(button.dataset.id);
@@ -807,7 +1038,7 @@ async function initCampaigns() {
     } catch (error) {
       setNotice("campaignNotice", error.message, "error");
     }
-  });
+  }, { getTrigger: (event) => event.target.closest("button") }));
 
   if (selectAllBtn) {
     selectAllBtn.addEventListener("click", () => {
@@ -834,9 +1065,9 @@ async function initCampaigns() {
   }
 
   if (deleteSelectedBtn) {
-    deleteSelectedBtn.addEventListener("click", async () => {
+    deleteSelectedBtn.addEventListener("click", withAsyncAction(async () => {
       if (globalThis.__campaignAllResultsSelected) {
-        const confirmed = safeConfirm("Delete all campaign results?");
+        const confirmed = await safeConfirm("Delete all campaign results?");
         if (!confirmed) return;
 
         try {
@@ -858,7 +1089,7 @@ async function initCampaigns() {
         return;
       }
 
-      const confirmed = safeConfirm(`Delete ${ids.length} selected campaign(s)?`);
+      const confirmed = await safeConfirm(`Delete ${ids.length} selected campaign(s)?`);
       if (!confirmed) return;
 
       try {
@@ -868,7 +1099,7 @@ async function initCampaigns() {
       } catch (error) {
         setNotice("campaignNotice", error.message, "error");
       }
-    });
+    }, { pendingText: "Deleting..." }));
   }
 
   byId("campaignTableBody").addEventListener("change", (event) => {
@@ -918,7 +1149,7 @@ async function initInbox() {
   }
   await refreshInquiries();
 
-  form.addEventListener("submit", async (event) => {
+  form.addEventListener("submit", withAsyncAction(async (event) => {
     event.preventDefault();
     try {
       const data = Object.fromEntries(new FormData(form).entries());
@@ -929,9 +1160,9 @@ async function initInbox() {
     } catch (error) {
       setNotice("inquiryNotice", error.message, "error");
     }
-  });
+  }, { pendingText: "Saving..." }));
 
-  byId("inquiryTableBody").addEventListener("click", async (event) => {
+  byId("inquiryTableBody").addEventListener("click", withAsyncAction(async (event) => {
     const button = event.target.closest("button");
     if (!button) return;
 
@@ -949,7 +1180,7 @@ async function initInbox() {
       }
 
       if (button.dataset.action === "delete") {
-        const confirmed = safeConfirm("Delete this inquiry?");
+        const confirmed = await safeConfirm("Delete this inquiry?");
         if (!confirmed) return;
 
         await api.deleteInquiry(button.dataset.id);
@@ -960,7 +1191,7 @@ async function initInbox() {
     } catch (error) {
       setNotice("inquiryNotice", error.message, "error");
     }
-  });
+  }, { getTrigger: (event) => event.target.closest("button") }));
 
   if (selectAllBtn) {
     selectAllBtn.addEventListener("click", () => {
@@ -987,9 +1218,9 @@ async function initInbox() {
   }
 
   if (deleteSelectedBtn) {
-    deleteSelectedBtn.addEventListener("click", async () => {
+    deleteSelectedBtn.addEventListener("click", withAsyncAction(async () => {
       if (globalThis.__inquiryAllResultsSelected) {
-        const confirmed = safeConfirm("Delete all inquiry results?");
+        const confirmed = await safeConfirm("Delete all inquiry results?");
         if (!confirmed) return;
 
         try {
@@ -1011,7 +1242,7 @@ async function initInbox() {
         return;
       }
 
-      const confirmed = safeConfirm(`Delete ${ids.length} selected inquiry record(s)?`);
+      const confirmed = await safeConfirm(`Delete ${ids.length} selected inquiry record(s)?`);
       if (!confirmed) return;
 
       try {
@@ -1021,7 +1252,7 @@ async function initInbox() {
       } catch (error) {
         setNotice("inquiryNotice", error.message, "error");
       }
-    });
+    }, { pendingText: "Deleting..." }));
   }
 
   byId("inquiryTableBody").addEventListener("change", (event) => {
@@ -1110,7 +1341,7 @@ async function initProposals() {
 
   await refreshProposals();
 
-  form.addEventListener("submit", async (event) => {
+  form.addEventListener("submit", withAsyncAction(async (event) => {
     event.preventDefault();
     try {
       const data = Object.fromEntries(new FormData(event.target).entries());
@@ -1122,15 +1353,15 @@ async function initProposals() {
     } catch (error) {
       setNotice("proposalNotice", error.message, "error");
     }
-  });
+  }, { pendingText: "Generating..." }));
 
-  byId("proposalTableBody").addEventListener("click", async (event) => {
+  byId("proposalTableBody").addEventListener("click", withAsyncAction(async (event) => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
 
     try {
       if (button.dataset.action === "delete") {
-        const confirmed = safeConfirm("Delete this proposal?");
+        const confirmed = await safeConfirm("Delete this proposal?");
         if (!confirmed) return;
 
         await api.deleteProposal(button.dataset.id);
@@ -1140,7 +1371,7 @@ async function initProposals() {
     } catch (error) {
       setNotice("proposalNotice", error.message, "error");
     }
-  });
+  }, { getTrigger: (event) => event.target.closest("button[data-action]") }));
 
   if (selectAllBtn) {
     selectAllBtn.addEventListener("click", () => setAllRowsSelected("proposalTableBody", true));
@@ -1151,7 +1382,7 @@ async function initProposals() {
   }
 
   if (deleteSelectedBtn) {
-    deleteSelectedBtn.addEventListener("click", async () => {
+    deleteSelectedBtn.addEventListener("click", withAsyncAction(async () => {
       const ids = getSelectedRowIds("proposalTableBody");
 
       if (ids.length === 0) {
@@ -1159,7 +1390,7 @@ async function initProposals() {
         return;
       }
 
-      const confirmed = safeConfirm(`Delete ${ids.length} selected proposal(s)?`);
+      const confirmed = await safeConfirm(`Delete ${ids.length} selected proposal(s)?`);
       if (!confirmed) return;
 
       try {
@@ -1169,7 +1400,7 @@ async function initProposals() {
       } catch (error) {
         setNotice("proposalNotice", error.message, "error");
       }
-    });
+    }, { pendingText: "Deleting..." }));
   }
 }
 
@@ -1202,7 +1433,7 @@ async function initScheduling() {
 
   await refreshDemos();
 
-  byId("demoForm").addEventListener("submit", async (event) => {
+  byId("demoForm").addEventListener("submit", withAsyncAction(async (event) => {
     event.preventDefault();
 
     try {
@@ -1214,15 +1445,15 @@ async function initScheduling() {
     } catch (error) {
       setNotice("demoNotice", error.message, "error");
     }
-  });
+  }, { pendingText: "Saving..." }));
 
-  listBody.addEventListener("click", async (event) => {
+  listBody.addEventListener("click", withAsyncAction(async (event) => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
 
     try {
       if (button.dataset.action === "delete") {
-        const confirmed = safeConfirm("Delete this demo schedule?");
+        const confirmed = await safeConfirm("Delete this demo schedule?");
         if (!confirmed) return;
 
         await api.deleteDemo(button.dataset.id);
@@ -1232,7 +1463,7 @@ async function initScheduling() {
     } catch (error) {
       setNotice("demoNotice", error.message, "error");
     }
-  });
+  }, { getTrigger: (event) => event.target.closest("button[data-action]") }));
 
   if (selectAllBtn) {
     selectAllBtn.addEventListener("click", () => setAllRowsSelected("demoTableBody", true));
@@ -1243,7 +1474,7 @@ async function initScheduling() {
   }
 
   if (deleteSelectedBtn) {
-    deleteSelectedBtn.addEventListener("click", async () => {
+    deleteSelectedBtn.addEventListener("click", withAsyncAction(async () => {
       const ids = getSelectedRowIds("demoTableBody");
 
       if (ids.length === 0) {
@@ -1251,7 +1482,7 @@ async function initScheduling() {
         return;
       }
 
-      const confirmed = safeConfirm(`Delete ${ids.length} selected demo(s)?`);
+      const confirmed = await safeConfirm(`Delete ${ids.length} selected demo(s)?`);
       if (!confirmed) return;
 
       try {
@@ -1261,7 +1492,7 @@ async function initScheduling() {
       } catch (error) {
         setNotice("demoNotice", error.message, "error");
       }
-    });
+    }, { pendingText: "Deleting..." }));
   }
 }
 
@@ -1307,7 +1538,7 @@ async function initAutomationStudio() {
     byId("pipelineRecommendationsOutput").textContent = JSON.stringify(result, null, 2);
   }
 
-  byId("techDetectForm").addEventListener("submit", async (event) => {
+  byId("techDetectForm").addEventListener("submit", withAsyncAction(async (event) => {
     event.preventDefault();
 
     try {
@@ -1318,9 +1549,9 @@ async function initAutomationStudio() {
     } catch (error) {
       setNotice("studioNotice", error.message, "error");
     }
-  });
+  }, { pendingText: "Detecting..." }));
 
-  byId("sequenceForm").addEventListener("submit", async (event) => {
+  byId("sequenceForm").addEventListener("submit", withAsyncAction(async (event) => {
     event.preventDefault();
 
     try {
@@ -1331,9 +1562,9 @@ async function initAutomationStudio() {
     } catch (error) {
       setNotice("studioNotice", error.message, "error");
     }
-  });
+  }, { pendingText: "Generating..." }));
 
-  byId("loadAssetsBtn").addEventListener("click", async () => {
+  byId("loadAssetsBtn").addEventListener("click", withAsyncAction(async () => {
     try {
       const result = await api.getSalesAssets();
       byId("assetOutput").textContent = JSON.stringify(result, null, 2);
@@ -1341,9 +1572,9 @@ async function initAutomationStudio() {
     } catch (error) {
       setNotice("studioNotice", error.message, "error");
     }
-  });
+  }, { pendingText: "Loading..." }));
 
-  byId("calendarForm").addEventListener("submit", async (event) => {
+  byId("calendarForm").addEventListener("submit", withAsyncAction(async (event) => {
     event.preventDefault();
 
     try {
@@ -1354,18 +1585,18 @@ async function initAutomationStudio() {
     } catch (error) {
       setNotice("studioNotice", error.message, "error");
     }
-  });
+  }, { pendingText: "Generating..." }));
 
-  byId("loadIntegrationStatusBtn").addEventListener("click", async () => {
+  byId("loadIntegrationStatusBtn").addEventListener("click", withAsyncAction(async () => {
     try {
       await loadIntegrationStatus();
       setNotice("studioNotice", "Integration status refreshed.");
     } catch (error) {
       setNotice("studioNotice", error.message, "error");
     }
-  });
+  }, { pendingText: "Refreshing..." }));
 
-  byId("processEmailJobsBtn").addEventListener("click", async () => {
+  byId("processEmailJobsBtn").addEventListener("click", withAsyncAction(async () => {
     try {
       const result = await api.processEmailJobs({ limit: 500 });
       byId("integrationOutput").textContent = JSON.stringify(result, null, 2);
@@ -1373,11 +1604,11 @@ async function initAutomationStudio() {
     } catch (error) {
       setNotice("studioNotice", error.message, "error");
     }
-  });
+  }, { pendingText: "Processing..." }));
 
   const aiSettingsForm = byId("aiAutomationSettingsForm");
   if (aiSettingsForm) {
-    aiSettingsForm.addEventListener("submit", async (event) => {
+    aiSettingsForm.addEventListener("submit", withAsyncAction(async (event) => {
       event.preventDefault();
       try {
         const formData = Object.fromEntries(new FormData(event.target).entries());
@@ -1394,12 +1625,12 @@ async function initAutomationStudio() {
       } catch (error) {
         setNotice("studioNotice", error.message, "error");
       }
-    });
+    }, { pendingText: "Saving..." }));
   }
 
   const runAiBtn = byId("runAiAutomationBtn");
   if (runAiBtn) {
-    runAiBtn.addEventListener("click", async () => {
+    runAiBtn.addEventListener("click", withAsyncAction(async () => {
       try {
         const result = await api.runAiAutomation({});
         byId("aiAutomationOutput").textContent = JSON.stringify(result, null, 2);
@@ -1412,31 +1643,31 @@ async function initAutomationStudio() {
       } catch (error) {
         setNotice("studioNotice", error.message, "error");
       }
-    });
+    }, { pendingText: "Running..." }));
   }
 
   const refreshAiBtn = byId("refreshAiAutomationBtn");
   if (refreshAiBtn) {
-    refreshAiBtn.addEventListener("click", async () => {
+    refreshAiBtn.addEventListener("click", withAsyncAction(async () => {
       try {
         await loadAiAutomationStatus();
         setNotice("studioNotice", "AI automation status refreshed.");
       } catch (error) {
         setNotice("studioNotice", error.message, "error");
       }
-    });
+    }, { pendingText: "Refreshing..." }));
   }
 
   const loadRecommendationsBtn = byId("loadPipelineRecommendationsBtn");
   if (loadRecommendationsBtn) {
-    loadRecommendationsBtn.addEventListener("click", async () => {
+    loadRecommendationsBtn.addEventListener("click", withAsyncAction(async () => {
       try {
         await loadPipelineRecommendations();
         setNotice("studioNotice", "Pipeline next-best-action recommendations loaded.");
       } catch (error) {
         setNotice("studioNotice", error.message, "error");
       }
-    });
+    }, { pendingText: "Loading..." }));
   }
 
   await loadIntegrationStatus();
@@ -1456,14 +1687,14 @@ async function initSettings() {
     output.textContent = JSON.stringify(status, null, 2);
   }
 
-  byId("refreshSettingsStatus").addEventListener("click", async () => {
+  byId("refreshSettingsStatus").addEventListener("click", withAsyncAction(async () => {
     try {
       await refresh();
       setNotice("settingsNotice", "Runtime status refreshed.");
     } catch (error) {
       setNotice("settingsNotice", error.message, "error");
     }
-  });
+  }, { pendingText: "Refreshing..." }));
 
   byId("clearSettingsOutput").addEventListener("click", () => {
     output.textContent = "";
@@ -1474,6 +1705,8 @@ async function initSettings() {
 }
 
 async function boot() {
+  setupLiveRegions();
+  setupResponsiveSidebar();
   activateNav();
   await hydrateHeader();
 
@@ -1490,9 +1723,11 @@ async function boot() {
   if (page === "settings") await initSettings();
 }
 
-boot().catch((error) => {
+try {
+  await boot();
+} catch (error) {
   const fallback = byId("globalError");
   if (fallback) {
-    fallback.innerHTML = `<div class="alert error">${error.message}</div>`;
+    fallback.replaceChildren(createAlertNode(error.message, "error"));
   }
-});
+}
