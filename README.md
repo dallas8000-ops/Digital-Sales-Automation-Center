@@ -6,7 +6,7 @@ Digital Sales Automation Center is a Django and static-frontend sales operations
 
 - Backend runtime: Django (Python)
 - Frontend runtime: static HTML/CSS/JS in `public/`
-- Local data store: `data/db.json`
+- Local data store: Django ORM (`db.sqlite3` locally; PostgreSQL-ready)
 - Local app URL: `http://localhost:4000`
 - Deployment target: Railway
 
@@ -17,7 +17,8 @@ The repository is intentionally single-backend-runtime (Django/Python). Legacy N
 - `backend/`: Django project settings and root URL wiring
 - `core/`: Django API handlers and app logic
 - `public/`: static frontend pages and browser JS
-- `data/db.json`: runtime JSON data used by the Django views
+- `core/migrations/`: ORM schema migrations
+- `core/management/commands/migrate_json_data.py`: one-time importer from legacy `data/db.json`
 - `scripts/verify_deploy_guard.py`: deployment guard to prevent conflicting runtime files
 
 ## Implemented API Surface (Django)
@@ -106,7 +107,7 @@ Expected behavior observed:
 3. Add export options for generated outputs: PDF, DOCX-style print layout, and structured CSV where appropriate.
 4. Add server-side schema validation for all write endpoints to enforce payload contracts consistently.
 5. Add API authentication and role-based access for admin-only operations.
-6. Move from local JSON file to PostgreSQL via Django models and migrations for stronger data integrity and concurrency handling.
+6. Keep ORM migrations current and switch production DB to managed PostgreSQL for scale.
 7. Add automated test coverage for critical flows: prospect create validation, automation status/settings, and integration status.
 8. Add rate limiting and audit logging for write-heavy endpoints.
 9. Add CI smoke tests that call core endpoints after deploy and fail fast on regressions.
