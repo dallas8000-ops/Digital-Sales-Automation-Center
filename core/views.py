@@ -4,22 +4,25 @@ import os
 import re
 import uuid
 from datetime import datetime, timezone
+from functools import wraps
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode, urlparse
+from urllib.parse import quote, unquote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from django.conf import settings
+from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.utils import timezone as dj_timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
-from .models import Activity, AppSetting, EmailEvent, EmailJob, Product, Prospect
+from .models import Activity, AppSetting, Campaign, EmailEvent, EmailJob, Product, Prospect, SuppressionList
 
 
 PUBLIC_DIR = Path(settings.BASE_DIR) / "public"
 APP_CONFIG_KEY = "app_config"
+UNSUBSCRIBE_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 365
 
 DEFAULT_PRODUCTS = [
     {
@@ -290,6 +293,18 @@ def serialize_prospect(item):
     }
 
 
+def serialize_campaign(item):
+    return {
+        "id": item.id,
+        "name": item.name,
+        "subjectTemplate": item.subject_template,
+        "bodyTemplate": item.body_template,
+        "status": item.status,
+        "createdAt": item.created_at.isoformat(),
+        "updatedAt": item.updated_at.isoformat(),
+    }
+
+
 def append_activity(event_type, message, metadata=None):
     Activity.objects.create(
         id=str(uuid.uuid4()),
@@ -299,6 +314,49 @@ def append_activity(event_type, message, metadata=None):
         created_at=dj_timezone.now(),
         updated_at=dj_timezone.now(),
     )
+
+
+def require_api_key(view_func):
+    @wraps(view_func)
+    def wrapped(request, *args, **kwargs):
+        configured_key = os.getenv("ADMIN_API_KEY", "").strip()
+        if not configured_key:
+            return JsonResponse({"error": "ADMIN_API_KEY is not configured"}, status=503)
+
+        provided_key = (
+            request.headers.get("X-API-Key", "").strip()
+            or request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+            or str(request.GET.get("apiKey") or "").strip()
+        )
+        if provided_key != configured_key:
+            return JsonResponse({"error": "unauthorized"}, status=401)
+        return view_func(request, *args, **kwargs)
+
+    return wrapped
+
+
+def build_unsubscribe_token(email):
+    signer = TimestampSigner(salt="dsac-unsubscribe")
+    return signer.sign(email.strip().lower())
+
+
+def parse_unsubscribe_token(token):
+    signer = TimestampSigner(salt="dsac-unsubscribe")
+    value = signer.unsign(unquote(token), max_age=UNSUBSCRIBE_TOKEN_TTL_SECONDS)
+    return value.strip().lower()
+
+
+def build_unsubscribe_url(email):
+    base = os.getenv("APP_BASE_URL", "http://localhost:4000").rstrip("/")
+    token = quote(build_unsubscribe_token(email), safe="")
+    return f"{base}/api/suppressions/unsubscribe?token={token}"
+
+
+def get_send_rate_cap():
+    config = get_config_value()
+    compliance = config.get("emailCompliance") if isinstance(config.get("emailCompliance"), dict) else {}
+    cap = int(compliance.get("maxSendsPerRun") or 50)
+    return max(1, min(cap, 1000))
 
 
 @require_GET
@@ -319,6 +377,7 @@ def api_products(_request):
 
 @require_http_methods(["GET", "POST"])
 @csrf_exempt
+@require_api_key
 def api_prospects(request):
     if request.method == "GET":
         queryset = Prospect.objects.all().order_by("-created_at")
@@ -404,6 +463,7 @@ def api_prospects(request):
 
 
 @require_GET
+@require_api_key
 def api_prospects_query(request):
     queryset = Prospect.objects.all()
     search = str(request.GET.get("search", "")).strip().lower()
@@ -472,6 +532,7 @@ def api_prospects_query(request):
 
 
 @require_GET
+@require_api_key
 def api_prospects_possible_clients(request):
     limit = max(1, min(500, int(request.GET.get("limit", 100))))
     prospects = Prospect.objects.all().order_by("-score", "company")[:limit]
@@ -479,6 +540,7 @@ def api_prospects_possible_clients(request):
 
 
 @require_GET
+@require_api_key
 def api_prospects_export_csv(_request):
     prospects = Prospect.objects.all().order_by("-created_at")
     fieldnames = ["company", "firstName", "lastName", "email", "website", "industry", "country", "stage", "score", "tier"]
@@ -490,6 +552,31 @@ def api_prospects_export_csv(_request):
         row = serialize_prospect(item)
         writer.writerow({k: row.get(k, "") for k in fieldnames})
     return response
+
+
+@require_http_methods(["GET", "POST"])
+@csrf_exempt
+def api_campaigns(request):
+    if request.method == "GET":
+        campaigns = Campaign.objects.all().order_by("-created_at")
+        return JsonResponse([serialize_campaign(item) for item in campaigns], safe=False)
+
+    payload = parse_json_body(request)
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        return JsonResponse({"error": "name is required"}, status=400)
+
+    item = Campaign.objects.create(
+        id=str(uuid.uuid4()),
+        name=name,
+        subject_template=str(payload.get("subjectTemplate") or ""),
+        body_template=str(payload.get("bodyTemplate") or ""),
+        status=str(payload.get("status") or "draft"),
+        created_at=dj_timezone.now(),
+        updated_at=dj_timezone.now(),
+    )
+    append_activity("campaign.created", f"Campaign created: {item.name}", {"campaignId": item.id})
+    return JsonResponse(serialize_campaign(item), status=201)
 
 
 @require_GET
@@ -527,6 +614,7 @@ def api_integrations_status(_request):
 
 
 @require_GET
+@require_api_key
 def api_email_jobs(_request):
     jobs = EmailJob.objects.all().order_by("-created_at")
     return JsonResponse(
@@ -547,36 +635,160 @@ def api_email_jobs(_request):
     )
 
 
+@require_http_methods(["GET", "POST"])
+@csrf_exempt
+def api_suppressions(request):
+    if request.method == "GET":
+        items = SuppressionList.objects.all().order_by("-created_at")
+        return JsonResponse(
+            [
+                {
+                    "email": item.email,
+                    "reason": item.reason,
+                    "source": item.source,
+                    "createdAt": item.created_at.isoformat(),
+                    "updatedAt": item.updated_at.isoformat(),
+                }
+                for item in items
+            ],
+            safe=False,
+        )
+
+    payload = parse_json_body(request)
+    email = str(payload.get("email") or "").strip().lower()
+    if not email:
+        return JsonResponse({"error": "email is required"}, status=400)
+    reason = str(payload.get("reason") or "manual").strip() or "manual"
+    source = str(payload.get("source") or "admin").strip() or "admin"
+    token = build_unsubscribe_token(email)
+    item, created = SuppressionList.objects.update_or_create(
+        email=email,
+        defaults={
+            "reason": reason,
+            "source": source,
+            "unsubscribe_token": token,
+            "updated_at": dj_timezone.now(),
+        },
+    )
+    append_activity("suppression.updated", f"Suppression {'created' if created else 'updated'} for {email}", {"reason": reason, "source": source})
+    return JsonResponse(
+        {
+            "email": item.email,
+            "reason": item.reason,
+            "source": item.source,
+            "created": created,
+        },
+        status=201 if created else 200,
+    )
+
+
+@require_http_methods(["GET", "POST"])
+@csrf_exempt
+def api_suppressions_unsubscribe(request):
+    token = request.GET.get("token") if request.method == "GET" else parse_json_body(request).get("token")
+    if not token:
+        return JsonResponse({"error": "token is required"}, status=400)
+
+    try:
+        email = parse_unsubscribe_token(token)
+    except SignatureExpired:
+        return JsonResponse({"error": "token expired"}, status=410)
+    except BadSignature:
+        return JsonResponse({"error": "invalid token"}, status=400)
+
+    item, _ = SuppressionList.objects.update_or_create(
+        email=email,
+        defaults={
+            "reason": "unsubscribe",
+            "source": "recipient",
+            "unsubscribe_token": token,
+            "updated_at": dj_timezone.now(),
+        },
+    )
+    append_activity("suppression.unsubscribe", f"Recipient unsubscribed: {email}", {"email": email})
+    return JsonResponse({"ok": True, "email": item.email, "suppressed": True})
+
+
 @require_http_methods(["POST"])
 @csrf_exempt
+@require_api_key
 def api_email_jobs_process(request):
     payload = parse_json_body(request)
-    limit = int(payload.get("limit") or 500)
-    jobs = list(EmailJob.objects.exclude(status="sent").order_by("created_at")[:limit])
+    requested_limit = int(payload.get("limit") or 500)
+    send_rate_cap = get_send_rate_cap()
+    effective_limit = min(max(1, requested_limit), send_rate_cap)
+    jobs = list(EmailJob.objects.filter(status="pending").order_by("created_at")[:effective_limit])
     sent = 0
     failed = 0
+    suppressed = 0
+    processed = 0
     now = dj_timezone.now()
 
     for job in jobs:
+        processed += 1
+        email = str(job.to_email or "").strip().lower()
+        if email and SuppressionList.objects.filter(email=email).exists():
+            job.status = "suppressed"
+            job.processed_at = now
+            job.updated_at = now
+            job.save(update_fields=["status", "processed_at", "updated_at"])
+            EmailEvent.objects.create(
+                id=str(uuid.uuid4()),
+                event_type="email.suppressed",
+                job=job,
+                metadata={"jobId": job.id, "email": email},
+                created_at=now,
+            )
+            suppressed += 1
+            continue
+
+        payload_with_unsub = dict(job.payload or {})
+        payload_with_unsub["unsubscribeUrl"] = build_unsubscribe_url(email)
+        payload_with_unsub["unsubscribeTokenGeneratedAt"] = now_iso()
+        job.payload = payload_with_unsub
         job.status = "sent"
         job.processed_at = now
         job.updated_at = now
-        job.save(update_fields=["status", "processed_at", "updated_at"])
+        job.save(update_fields=["status", "processed_at", "updated_at", "payload"])
         EmailEvent.objects.create(
             id=str(uuid.uuid4()),
             event_type="email.sent",
             job=job,
-            metadata={"jobId": job.id},
+            metadata={"jobId": job.id, "toEmail": email, "unsubscribeUrl": payload_with_unsub["unsubscribeUrl"]},
             created_at=now,
         )
         sent += 1
 
-    append_activity("email.jobs.processed", f"Processed {sent} email jobs", {"sent": sent, "failed": failed})
-    remaining = EmailJob.objects.exclude(status="sent").count()
-    return JsonResponse({"sent": sent, "failed": failed, "remaining": remaining})
+    append_activity(
+        "email.jobs.processed",
+        f"Processed {processed} jobs (sent={sent}, suppressed={suppressed})",
+        {
+            "requestedLimit": requested_limit,
+            "sendRateCap": send_rate_cap,
+            "effectiveLimit": effective_limit,
+            "processed": processed,
+            "sent": sent,
+            "suppressed": suppressed,
+            "failed": failed,
+        },
+    )
+    remaining = EmailJob.objects.filter(status="pending").count()
+    return JsonResponse(
+        {
+            "requestedLimit": requested_limit,
+            "sendRateCap": send_rate_cap,
+            "effectiveLimit": effective_limit,
+            "processed": processed,
+            "sent": sent,
+            "suppressed": suppressed,
+            "failed": failed,
+            "remaining": remaining,
+        }
+    )
 
 
 @require_GET
+@require_api_key
 def api_ai_automation_status(_request):
     config = get_config_value()
     cfg = config.get("aiAutomation", DEFAULT_CONFIG["aiAutomation"])
@@ -590,6 +802,7 @@ def api_ai_automation_status(_request):
 
 @require_http_methods(["POST"])
 @csrf_exempt
+@require_api_key
 def api_ai_automation_settings(request):
     payload = parse_json_body(request)
     config = get_config_value()
@@ -610,6 +823,7 @@ def api_ai_automation_settings(request):
 
 @require_http_methods(["POST"])
 @csrf_exempt
+@require_api_key
 def api_ai_automation_run(_request):
     config = get_config_value()
     now = now_iso()

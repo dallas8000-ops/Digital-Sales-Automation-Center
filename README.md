@@ -76,6 +76,24 @@ python manage.py runserver 0.0.0.0:4000
 - Railway start command: `python manage.py runserver 0.0.0.0:$PORT`
 - Nixpacks provider: `python`
 
+### Required Security Environment Variables
+
+- `DJANGO_DEBUG=false`
+- `DJANGO_ALLOWED_HOSTS=gilliomfrontlinedigital.com,www.gilliomfrontlinedigital.com`
+- `ADMIN_API_KEY=<strong-random-value>`
+
+Admin-facing endpoints now require `X-API-Key: <ADMIN_API_KEY>` (or `Authorization: Bearer <ADMIN_API_KEY>`):
+
+- `/api/prospects`
+- `/api/prospects/query`
+- `/api/prospects/possible-clients`
+- `/api/prospects/export.csv`
+- `/api/email-jobs`
+- `/api/email-jobs/process`
+- `/api/ai/automation/status`
+- `/api/ai/automation/settings`
+- `/api/ai/automation/run`
+
 ## Deploy Guard
 
 Run manually:

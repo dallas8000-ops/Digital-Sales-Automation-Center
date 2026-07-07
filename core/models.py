@@ -66,3 +66,22 @@ class EmailEvent(models.Model):
 	job = models.ForeignKey(EmailJob, on_delete=models.SET_NULL, null=True, blank=True)
 	metadata = models.JSONField(default=dict)
 	created_at = models.DateTimeField(default=timezone.now)
+
+
+class Campaign(models.Model):
+	id = models.CharField(primary_key=True, max_length=120)
+	name = models.CharField(max_length=255)
+	subject_template = models.TextField(blank=True, default="")
+	body_template = models.TextField(blank=True, default="")
+	status = models.CharField(max_length=40, blank=True, default="draft")
+	created_at = models.DateTimeField(default=timezone.now)
+	updated_at = models.DateTimeField(default=timezone.now)
+
+
+class SuppressionList(models.Model):
+	email = models.EmailField(max_length=320, unique=True)
+	reason = models.CharField(max_length=120, blank=True, default="unsubscribe")
+	source = models.CharField(max_length=120, blank=True, default="recipient")
+	unsubscribe_token = models.CharField(max_length=512, blank=True, default="")
+	created_at = models.DateTimeField(default=timezone.now)
+	updated_at = models.DateTimeField(default=timezone.now)
