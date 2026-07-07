@@ -6,6 +6,12 @@ from . import views
 urlpatterns = [
     path("api/health", views.api_health),
     path("api/config", views.api_config),
+    path("api/analytics", views.api_analytics),
+    path("api/activity", views.api_activity),
+    path("api/activity/<str:activity_id>", views.api_activity_item),
+    path("api/activity/bulk-delete", views.api_activity_bulk_delete),
+    path("api/activity/prune", views.api_activity_prune),
+    path("api/settings/env", views.api_settings_env),
     path("api/products", views.api_products),
     path("api/prospects", views.api_prospects),
     path("api/campaigns", views.api_campaigns),

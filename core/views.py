@@ -305,6 +305,17 @@ def serialize_campaign(item):
     }
 
 
+def serialize_activity(item):
+    return {
+        "id": item.id,
+        "type": item.type,
+        "message": item.message,
+        "metadata": item.metadata or {},
+        "createdAt": item.created_at.isoformat(),
+        "updatedAt": item.updated_at.isoformat(),
+    }
+
+
 def append_activity(event_type, message, metadata=None):
     Activity.objects.create(
         id=str(uuid.uuid4()),
@@ -373,6 +384,100 @@ def api_config(_request):
 def api_products(_request):
     ensure_defaults()
     return JsonResponse([serialize_product(p) for p in Product.objects.all().order_by("name")], safe=False)
+
+
+@require_GET
+def api_analytics(_request):
+    prospects = list(Prospect.objects.all())
+    hot_leads = sum(1 for item in prospects if (item.tier or "").lower() == "hot")
+    warm_leads = sum(1 for item in prospects if (item.tier or "").lower() == "warm")
+    demos_scheduled = 0
+    pipeline_value = sum(float(item.score or 0) * 100 for item in prospects)
+    recent_activity = [serialize_activity(item) for item in Activity.objects.all().order_by("-created_at")[:10]]
+
+    return JsonResponse(
+        {
+            "prospects": len(prospects),
+            "emailsSent": EmailEvent.objects.filter(event_type="email.sent").count(),
+            "meetings": demos_scheduled,
+            "pipelineValue": pipeline_value,
+            "replyRate": 0,
+            "meetingRate": 0,
+            "openInquiries": 0,
+            "hotLeads": hot_leads,
+            "warmLeads": warm_leads,
+            "demosScheduled": demos_scheduled,
+            "recentActivity": recent_activity,
+        }
+    )
+
+
+@require_GET
+def api_activity(request):
+    limit = max(1, min(500, int(request.GET.get("limit", 25))))
+    rows = Activity.objects.all().order_by("-created_at")[:limit]
+    return JsonResponse([serialize_activity(item) for item in rows], safe=False)
+
+
+@require_http_methods(["PATCH", "DELETE"])
+@csrf_exempt
+def api_activity_item(request, activity_id):
+    item = Activity.objects.filter(id=activity_id).first()
+    if not item:
+        return JsonResponse({"error": "activity not found"}, status=404)
+
+    if request.method == "DELETE":
+        item.delete()
+        return JsonResponse({"ok": True})
+
+    payload = parse_json_body(request)
+    item.type = str(payload.get("type") or item.type)
+    item.message = str(payload.get("message") or item.message)
+    item.updated_at = dj_timezone.now()
+    item.save(update_fields=["type", "message", "updated_at"])
+    return JsonResponse(serialize_activity(item))
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def api_activity_bulk_delete(request):
+    payload = parse_json_body(request)
+    ids = [str(item) for item in (payload.get("ids") or []) if item]
+    if not ids:
+        return JsonResponse({"removed": 0})
+
+    removed, _ = Activity.objects.filter(id__in=ids).delete()
+    return JsonResponse({"removed": removed})
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def api_activity_prune(request):
+    payload = parse_json_body(request)
+    keep_last = max(1, int(payload.get("keepLast") or 200))
+    ids_to_keep = list(Activity.objects.all().order_by("-created_at").values_list("id", flat=True)[:keep_last])
+    removed, _ = Activity.objects.exclude(id__in=ids_to_keep).delete()
+    current_count = Activity.objects.count()
+    return JsonResponse({"removed": removed, "currentCount": current_count})
+
+
+@require_GET
+def api_settings_env(_request):
+    config = get_config_value()
+    return JsonResponse(
+        {
+            "companyName": config.get("companyName"),
+            "website": config.get("website"),
+            "founder": config.get("founder"),
+            "runtime": "django",
+            "environment": os.getenv("RAILWAY_ENVIRONMENT_NAME") or os.getenv("RAILWAY_ENVIRONMENT") or "local",
+            "stripeConfigured": bool(os.getenv("STRIPE_SECRET_KEY")),
+            "smtpConfigured": bool(os.getenv("SMTP_HOST")) and bool(os.getenv("SMTP_USER")),
+            "openAiConfigured": bool(os.getenv("OPENAI_API_KEY")),
+            "hunterConfigured": bool(os.getenv("HUNTER_API_KEY")),
+            "adminApiConfigured": bool(os.getenv("ADMIN_API_KEY")),
+        }
+    )
 
 
 @require_http_methods(["GET", "POST"])
