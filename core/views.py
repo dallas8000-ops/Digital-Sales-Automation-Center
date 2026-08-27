@@ -1402,15 +1402,25 @@ def api_discovery_tech_detect(request):
 
 @require_GET
 def api_sales_assets(_request):
+    # Pricing sheets used to be one hardcoded entry (Studio's numbers, mislabeled onto
+    # every product). Build them from the real Product catalog instead, so a proposal
+    # never shows a prospect the wrong price for the product they're buying.
+    ensure_defaults()
+    pricing_sheets = [
+        {
+            "solution": product.name,
+            "priceFrom": product.price_from,
+            "details": product.description,
+        }
+        for product in Product.objects.all().order_by("name")
+    ]
     return JsonResponse(
         {
             "jobBoardTemplates": {
                 "indeed": "Hi [Name], I noticed your role focus on [priority].",
                 "glassdoor": "Hi [Name], based on your priorities, teams are juggling AI tooling across fragmented workflows.",
             },
-            "pricingSheets": [
-                {"solution": "AI Software Operations Studio", "starter": "$7,500", "growth": "$15,000", "enterprise": "$35,000+"}
-            ],
+            "pricingSheets": pricing_sheets,
         }
     )
 
