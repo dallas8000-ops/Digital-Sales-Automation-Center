@@ -21,6 +21,7 @@ urlpatterns = [
     path("api/integrations/status", views.api_integrations_status),
     path("api/email-jobs", views.api_email_jobs),
     path("api/email-jobs/process", views.api_email_jobs_process),
+    path("api/email-jobs/<str:job_id>", views.api_email_job_item),
     path("api/suppressions", views.api_suppressions),
     path("api/suppressions/unsubscribe", views.api_suppressions_unsubscribe),
     path("api/ai/automation/status", views.api_ai_automation_status),

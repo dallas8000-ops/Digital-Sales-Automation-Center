@@ -1226,6 +1226,46 @@ def api_suppressions_unsubscribe(request):
     return JsonResponse({"ok": True, "email": item.email, "suppressed": True})
 
 
+@require_http_methods(["PATCH", "DELETE"])
+@csrf_exempt
+@require_api_key
+def api_email_job_item(request, job_id):
+    job = EmailJob.objects.filter(id=job_id).first()
+    if not job:
+        return JsonResponse({"error": "email job not found"}, status=404)
+
+    if request.method == "DELETE":
+        if job.status != "pending":
+            return JsonResponse({"error": f"cannot delete a job in status '{job.status}'"}, status=409)
+        job.delete()
+        return JsonResponse({"ok": True})
+
+    if job.status != "pending":
+        return JsonResponse({"error": f"cannot edit a job in status '{job.status}'"}, status=409)
+
+    payload = parse_json_body(request)
+    job_payload = dict(job.payload or {})
+    if "subject" in payload:
+        job_payload["subject"] = str(payload["subject"])
+    if "body" in payload:
+        job_payload["body"] = str(payload["body"])
+    job.payload = job_payload
+    if payload.get("toEmail"):
+        job.to_email = str(payload["toEmail"]).strip().lower()
+    job.updated_at = dj_timezone.now()
+    job.save(update_fields=["payload", "to_email", "updated_at"])
+    return JsonResponse(
+        {
+            "id": job.id,
+            "type": job.job_type,
+            "toEmail": job.to_email,
+            "status": job.status,
+            "payload": job.payload,
+            "updatedAt": job.updated_at.isoformat(),
+        }
+    )
+
+
 @require_http_methods(["POST"])
 @csrf_exempt
 @require_api_key
