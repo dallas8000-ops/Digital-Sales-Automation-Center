@@ -3,8 +3,10 @@ import hashlib
 import json
 import os
 import re
+import smtplib
 import uuid
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 from functools import wraps
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -663,6 +665,45 @@ def get_send_rate_cap():
     return max(1, min(cap, 1000))
 
 
+class SmtpNotConfigured(Exception):
+    """Raised when SMTP_HOST/SMTP_USER/SMTP_PASSWORD aren't set yet."""
+
+
+def send_via_smtp(to_email, subject, body_text, unsubscribe_url=None):
+    # This used to be a no-op: the caller just flipped a job's status to "sent"
+    # without anything actually going out over the wire. This is the real send.
+    host = os.getenv("SMTP_HOST", "").strip()
+    port = int(os.getenv("SMTP_PORT", "587") or 587)
+    user = os.getenv("SMTP_USER", "").strip()
+    password = os.getenv("SMTP_PASSWORD", "").strip()
+    use_ssl = str(os.getenv("SMTP_SECURE", "")).strip().lower() in {"1", "true", "yes"}
+    from_email = os.getenv("DEFAULT_FROM_EMAIL", "").strip() or user
+
+    if not (host and user and password and to_email):
+        raise SmtpNotConfigured("SMTP_HOST, SMTP_USER, and SMTP_PASSWORD must all be set to send email")
+
+    message = EmailMessage()
+    message["Subject"] = subject or "Following up"
+    message["From"] = from_email
+    message["To"] = to_email
+
+    body = body_text or ""
+    if unsubscribe_url:
+        message["List-Unsubscribe"] = f"<{unsubscribe_url}>"
+        body = f"{body}\n\nUnsubscribe: {unsubscribe_url}"
+    message.set_content(body)
+
+    if use_ssl:
+        with smtplib.SMTP_SSL(host, port, timeout=15) as server:
+            server.login(user, password)
+            server.send_message(message)
+    else:
+        with smtplib.SMTP(host, port, timeout=15) as server:
+            server.starttls()
+            server.login(user, password)
+            server.send_message(message)
+
+
 @require_GET
 def api_health(_request):
     return JsonResponse({"ok": True, "service": "digital-sales-automation-center"})
@@ -769,7 +810,7 @@ def api_settings_env(_request):
             "runtime": "django",
             "environment": os.getenv("RAILWAY_ENVIRONMENT_NAME") or os.getenv("RAILWAY_ENVIRONMENT") or "local",
             "stripeConfigured": bool(os.getenv("STRIPE_SECRET_KEY")),
-            "smtpConfigured": bool(os.getenv("SMTP_HOST")) and bool(os.getenv("SMTP_USER")),
+            "smtpConfigured": bool(os.getenv("SMTP_HOST")) and bool(os.getenv("SMTP_USER")) and bool(os.getenv("SMTP_PASSWORD")),
             "openAiConfigured": bool(os.getenv("OPENAI_API_KEY")),
             "hunterConfigured": bool(os.getenv("HUNTER_API_KEY")),
             "adminApiConfigured": bool(os.getenv("ADMIN_API_KEY")),
@@ -1061,6 +1102,7 @@ def api_integrations_status(_request):
     webhook = bool(os.getenv("STRIPE_WEBHOOK_SECRET"))
     smtp_host = bool(os.getenv("SMTP_HOST"))
     smtp_user = bool(os.getenv("SMTP_USER"))
+    smtp_password = bool(os.getenv("SMTP_PASSWORD"))
     smtp_port = bool(os.getenv("SMTP_PORT", "587"))
     openai_key = bool(os.getenv("OPENAI_API_KEY"))
 
@@ -1073,10 +1115,10 @@ def api_integrations_status(_request):
                 "apiVersion": os.getenv("STRIPE_API_VERSION", "default"),
             },
             "email": {
-                "enabled": smtp_host and smtp_user,
+                "enabled": smtp_host and smtp_user and smtp_password,
                 "hostConfigured": smtp_host,
                 "portConfigured": smtp_port,
-                "authConfigured": smtp_user,
+                "authConfigured": smtp_user and smtp_password,
             },
             "ai": {"enabled": openai_key, "model": os.getenv("OPENAI_MODEL", "gpt-4")},
             "queues": {
@@ -1236,8 +1278,16 @@ def api_email_jobs_process(request):
             continue
 
         try:
-            payload_with_unsub = dict(job.payload or {})
-            payload_with_unsub["unsubscribeUrl"] = build_unsubscribe_url(email)
+            unsubscribe_url = build_unsubscribe_url(email)
+            job_payload = dict(job.payload or {})
+            campaign = prospect.email_campaign
+            subject = str(job_payload.get("subject") or (campaign.subject_template if campaign else "") or f"Following up, {prospect.company}")
+            body = str(job_payload.get("body") or (campaign.body_template if campaign else "") or "")
+
+            send_via_smtp(email, subject, body, unsubscribe_url=unsubscribe_url)
+
+            payload_with_unsub = job_payload
+            payload_with_unsub["unsubscribeUrl"] = unsubscribe_url
             payload_with_unsub["unsubscribeTokenGeneratedAt"] = now_iso()
             job.payload = payload_with_unsub
             job.status = "sent"
@@ -1252,7 +1302,26 @@ def api_email_jobs_process(request):
                 metadata={"jobId": job.id, "toEmail": email, "unsubscribeUrl": payload_with_unsub["unsubscribeUrl"]},
                 created_at=now,
             )
+            if prospect.follow_up_status == Prospect.FollowUpStatus.NOT_STARTED:
+                prospect.follow_up_status = Prospect.FollowUpStatus.OUTREACH_SENT
+                prospect.updated_at = now
+                prospect.save(update_fields=["follow_up_status", "updated_at"])
             sent += 1
+        except SmtpNotConfigured as exc:
+            # Don't burn retries on a config problem that resending won't fix — surface it plainly instead.
+            job.status = "failed"
+            job.last_error = str(exc)
+            job.processed_at = now
+            job.updated_at = now
+            job.save(update_fields=["status", "last_error", "processed_at", "updated_at"])
+            EmailEvent.objects.create(
+                id=str(uuid.uuid4()),
+                event_type="email.failed",
+                job=job,
+                metadata={"jobId": job.id, "toEmail": email, "error": job.last_error},
+                created_at=now,
+            )
+            failed += 1
         except Exception as exc:
             job.retry_count = int(job.retry_count or 0) + 1
             job.last_error = str(exc)
@@ -1346,27 +1415,112 @@ def api_ai_automation_settings(request):
     return JsonResponse(updated)
 
 
+def build_outreach_content(prospect, cfg, config):
+    campaign = prospect.email_campaign
+    product_name = prospect.matched_product.name if prospect.matched_product else (prospect.recommended_product or "our platform")
+    if campaign and (campaign.subject_template or campaign.body_template):
+        subject = campaign.subject_template or f"A quick idea for {prospect.company}"
+        body = campaign.body_template or ""
+    else:
+        job_title = cfg.get("jobTitle", "CTO")
+        founder = config.get("companyName", "")
+        subject = f"Quick question about {prospect.company}'s {product_name.lower()}"
+        body = (
+            f"Hi {prospect.first_name or 'there'},\n\n"
+            f"I'm reaching out from {founder}. I came across {prospect.company} and think "
+            f"{product_name} could help with {prospect.why_fit or 'your current operations'}.\n\n"
+            f"Worth a quick call this week?\n\n{job_title}, {founder}"
+        )
+    return subject, body
+
+
 @require_http_methods(["POST"])
 @csrf_exempt
 @require_api_key
 def api_ai_automation_run(_request):
+    # Used to be a pure no-op: it recorded a "ran" timestamp but queued nothing, because
+    # nothing anywhere in the app created EmailJob rows. This is the real queueing step —
+    # it finds compliance-ready prospects who haven't been reached yet and queues one
+    # outreach EmailJob per prospect (up to the configured daily limit). Sending itself
+    # still happens separately via POST /api/email-jobs/process.
     config = get_config_value()
+    cfg = config.get("aiAutomation", DEFAULT_CONFIG["aiAutomation"])
     now = now_iso()
+
+    if not cfg.get("enabled", True):
+        summary = {
+            "mode": "manual",
+            "ranAt": now,
+            "topProspectsEvaluated": 0,
+            "outreachQueued": 0,
+            "followUpsQueued": 0,
+            "repliedInquiriesReviewed": 0,
+            "recommendations": [],
+            "note": "AI automation is disabled in settings; nothing was queued.",
+        }
+        cfg["lastRunSummary"] = summary
+        cfg["lastDailyRunOn"] = now.split("T")[0]
+        config["aiAutomation"] = cfg
+        save_config_value(config)
+        append_activity("ai.automation.run", "AI automation run skipped (disabled)", summary)
+        return JsonResponse({"ok": True, "summary": summary})
+
+    cap = max(1, min(int(cfg.get("dailyLimit") or 25), 200))
+    already_queued_prospect_ids = {
+        pid for pid in (
+            (job.payload or {}).get("prospectId") for job in EmailJob.objects.filter(job_type="outreach")
+        ) if pid
+    }
+    candidates = list(
+        Prospect.objects.filter(follow_up_status=Prospect.FollowUpStatus.NOT_STARTED)
+        .exclude(id__in=already_queued_prospect_ids)
+        .order_by("-score", "company")[: cap * 5]
+    )
+
+    queued = []
+    skipped_not_ready = 0
+    skipped_suppressed = 0
+
+    for prospect in candidates:
+        if len(queued) >= cap:
+            break
+        expected_email = str(prospect.verified_email or prospect.email or "").strip().lower()
+        if not is_prospect_compliance_ready(prospect, expected_email):
+            skipped_not_ready += 1
+            continue
+        if SuppressionList.objects.filter(email=expected_email).exists():
+            skipped_suppressed += 1
+            continue
+
+        subject, body = build_outreach_content(prospect, cfg, config)
+        job = EmailJob.objects.create(
+            id=str(uuid.uuid4()),
+            job_type="outreach",
+            to_email=expected_email,
+            status="pending",
+            payload={"prospectId": prospect.id, "subject": subject, "body": body},
+            created_at=dj_timezone.now(),
+            updated_at=dj_timezone.now(),
+        )
+        queued.append({"prospectId": prospect.id, "company": prospect.company, "jobId": job.id})
+
     summary = {
         "mode": "manual",
         "ranAt": now,
-        "topProspectsEvaluated": 0,
-        "outreachQueued": 0,
+        "topProspectsEvaluated": len(candidates),
+        "outreachQueued": len(queued),
         "followUpsQueued": 0,
         "repliedInquiriesReviewed": 0,
-        "recommendations": [],
+        "skippedNotComplianceReady": skipped_not_ready,
+        "skippedSuppressed": skipped_suppressed,
+        "recommendations": queued,
     }
-    cfg = config.get("aiAutomation", DEFAULT_CONFIG["aiAutomation"])
     cfg["lastRunSummary"] = summary
     cfg["lastDailyRunOn"] = now.split("T")[0]
     config["aiAutomation"] = cfg
     save_config_value(config)
-    append_activity("ai.automation.run", "Executed AI automation run", summary)
+    append_activity("ai.automation.run", f"Queued {len(queued)} outreach email(s)", summary)
+    cache.delete(ANALYTICS_CACHE_KEY)
     return JsonResponse({"ok": True, "summary": summary})
 
 
