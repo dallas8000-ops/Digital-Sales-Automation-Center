@@ -1,5 +1,5 @@
 Django==5.2.15
-django-database-url==2.3.0
+django-database-url==1.0.3
 djangorestframework==3.16.1
 psycopg2-binary==2.9.10
 python-dotenv==1.1.1
