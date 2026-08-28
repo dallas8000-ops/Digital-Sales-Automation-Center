@@ -1701,6 +1701,37 @@ async function initSettings() {
     setNotice("settingsNotice", "Output cleared.");
   });
 
+  const adminKeyForm = byId("adminKeyForm");
+  const adminKeyInput = byId("adminKeyInput");
+  const clearAdminKeyBtn = byId("clearAdminKeyBtn");
+
+  if (adminKeyInput) {
+    adminKeyInput.placeholder = api.hasAdminKey() ? "Key saved in this browser" : "Paste ADMIN_API_KEY here";
+  }
+
+  if (adminKeyForm) {
+    adminKeyForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const value = adminKeyInput.value.trim();
+      if (!value) {
+        setNotice("adminKeyNotice", "Enter a key first.", "error");
+        return;
+      }
+      api.setAdminKey(value);
+      adminKeyInput.value = "";
+      adminKeyInput.placeholder = "Key saved in this browser";
+      setNotice("adminKeyNotice", "Saved to this browser. Write actions on this device will now authenticate.");
+    });
+  }
+
+  if (clearAdminKeyBtn) {
+    clearAdminKeyBtn.addEventListener("click", () => {
+      api.setAdminKey("");
+      adminKeyInput.placeholder = "Paste ADMIN_API_KEY here";
+      setNotice("adminKeyNotice", "Cleared from this browser.");
+    });
+  }
+
   await refresh();
 }
 

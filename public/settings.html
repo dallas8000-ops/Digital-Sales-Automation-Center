@@ -38,10 +38,27 @@
           <article class="card" style="grid-column: 1 / -1;">
             <h3>Security Policy</h3>
             <p class="metric-label" style="margin: 0;">
-              Runtime secret updates are disabled from the frontend. Configure secrets in your deployment platform
-              (Railway environment variables, local server env file, or host secret manager) instead.
+              The server-side ADMIN_API_KEY itself is never fetched, displayed, or changed from this UI --
+              it's configured only in your deployment platform (Railway environment variables, local server
+              env file, or host secret manager).
             </p>
           </article>
+        </section>
+
+        <section class="card" style="margin-top:16px;">
+          <h3>This Browser's Admin Key</h3>
+          <p class="metric-label">
+            Every write action here (adding prospects, running automation, sending campaigns, generating
+            proposals) requires the same ADMIN_API_KEY configured on the server. Paste it below to save it in
+            <em>this browser's local storage only</em> -- it's sent as a request header to this API and nowhere
+            else, and never leaves this device. Clear it any time.
+          </p>
+          <div id="adminKeyNotice"></div>
+          <form id="adminKeyForm" class="flex" style="gap: 8px; align-items: flex-end;">
+            <label style="flex: 1;">Admin API Key <input type="password" name="adminKey" id="adminKeyInput" autocomplete="off" placeholder="Paste ADMIN_API_KEY here" /></label>
+            <button class="primary" type="submit">Save</button>
+            <button class="secondary" type="button" id="clearAdminKeyBtn">Clear</button>
+          </form>
         </section>
 
         <section class="card" style="margin-top:16px;">

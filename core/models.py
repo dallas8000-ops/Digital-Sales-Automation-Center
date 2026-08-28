@@ -163,6 +163,27 @@ class CampaignTarget(models.Model):
 		constraints = [models.UniqueConstraint(fields=["campaign", "company"], name="uniq_campaign_target_company")]
 
 
+class Proposal(models.Model):
+	class Status(models.TextChoices):
+		DRAFT = "draft", "Draft (Stripe not configured)"
+		CHECKOUT_READY = "checkout_ready", "Checkout link ready"
+		ERROR = "error", "Stripe error"
+
+	id = models.CharField(primary_key=True, max_length=120)
+	company = models.CharField(max_length=255)
+	contact = models.CharField(max_length=255, blank=True, default="")
+	product = models.ForeignKey("Product", on_delete=models.SET_NULL, null=True, blank=True, related_name="proposals")
+	prospect = models.ForeignKey("Prospect", on_delete=models.SET_NULL, null=True, blank=True, related_name="proposals")
+	monthly_fee = models.FloatField(default=0)
+	scope = models.TextField(blank=True, default="")
+	status = models.CharField(max_length=30, choices=Status.choices, default=Status.DRAFT)
+	stripe_checkout_url = models.URLField(max_length=1000, blank=True, default="")
+	stripe_checkout_session_id = models.CharField(max_length=255, blank=True, default="")
+	stripe_error = models.TextField(blank=True, default="")
+	created_at = models.DateTimeField(default=timezone.now)
+	updated_at = models.DateTimeField(default=timezone.now)
+
+
 class SuppressionList(models.Model):
 	email = models.EmailField(max_length=320, unique=True)
 	reason = models.CharField(max_length=120, blank=True, default="unsubscribe")

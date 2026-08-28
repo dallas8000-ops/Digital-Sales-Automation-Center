@@ -20,10 +20,40 @@ function buildUrl(path) {
   return `${base}${path}`;
 }
 
+const ADMIN_KEY_STORAGE = "dsac_admin_api_key";
+
+// The admin API key gates every write endpoint (create/update/delete prospects,
+// run automation, send campaigns, generate proposals, etc). It's never fetched
+// from or stored on the server for the browser -- Settings just lets you paste
+// the same key you already configured as ADMIN_API_KEY on the backend into this
+// browser's local storage, so requests from this device carry it. Nothing here
+// changes, reads, or exposes the server-side secret itself.
+function getAdminKey() {
+  try {
+    return (globalThis.localStorage && localStorage.getItem(ADMIN_KEY_STORAGE)) || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function setAdminKey(value) {
+  try {
+    if (value) {
+      localStorage.setItem(ADMIN_KEY_STORAGE, value);
+    } else {
+      localStorage.removeItem(ADMIN_KEY_STORAGE);
+    }
+  } catch (error) {
+    // Local storage unavailable (private browsing, etc) -- nothing to do.
+  }
+}
+
 async function request(url, options = {}) {
+  const adminKey = getAdminKey();
   const response = await fetch(buildUrl(url), {
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...(adminKey ? { "X-API-Key": adminKey } : {})
     },
     ...options
   });
@@ -41,6 +71,10 @@ async function request(url, options = {}) {
 }
 
 export const api = {
+  getAdminKey,
+  setAdminKey,
+  hasAdminKey: () => Boolean(getAdminKey()),
+
   getHealth: () => request("/api/health"),
   getConfig: () => request("/api/config"),
   getSettingsEnv: () => request("/api/settings/env"),

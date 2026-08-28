@@ -32,6 +32,9 @@ urlpatterns = [
     path("api/sales-package/assets", views.api_sales_assets),
     path("api/sales-package/calendar", views.api_sales_calendar),
     path("api/sales-package/sequence", views.api_sales_sequence),
+    path("api/proposals", views.api_proposals),
+    path("api/proposals/bulk-delete", views.api_proposals_bulk_delete),
+    path("api/proposals/<str:proposal_id>", views.api_proposal_item),
     path("", views.serve_public_page),
     path("<path:page>", views.serve_public_page),
 ]

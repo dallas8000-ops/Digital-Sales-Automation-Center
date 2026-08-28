@@ -24,7 +24,9 @@ from django.utils import timezone as dj_timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
-from .models import Activity, ApiToken, AppSetting, AuditEvent, Campaign, CampaignTarget, EmailEvent, EmailJob, IdempotencyKey, Product, Prospect, ProspectContact, SuppressionList
+import stripe
+
+from .models import Activity, ApiToken, AppSetting, AuditEvent, Campaign, CampaignTarget, EmailEvent, EmailJob, IdempotencyKey, Product, Proposal, Prospect, ProspectContact, SuppressionList
 
 
 PUBLIC_DIR = Path(settings.BASE_DIR) / "public"
@@ -1897,6 +1899,135 @@ def api_sales_sequence(request):
         ],
         safe=False,
     )
+
+
+def serialize_proposal(proposal):
+    return {
+        "id": proposal.id,
+        "company": proposal.company,
+        "contact": proposal.contact,
+        "productId": proposal.product_id,
+        "productName": proposal.product.name if proposal.product else "",
+        "prospectId": proposal.prospect_id,
+        "monthlyFee": proposal.monthly_fee,
+        "total": proposal.monthly_fee,
+        "scope": proposal.scope,
+        "status": proposal.status,
+        "stripeCheckoutLink": proposal.stripe_checkout_url,
+        "stripeError": proposal.stripe_error,
+        "createdAt": proposal.created_at.isoformat() if proposal.created_at else None,
+        "updatedAt": proposal.updated_at.isoformat() if proposal.updated_at else None,
+    }
+
+
+def create_stripe_checkout_session(request, proposal, product_name):
+    # Returns (session_id, checkout_url, error). Deliberately dynamic price_data instead of
+    # pre-provisioned Stripe Products/Prices -- Barney can adjust the monthly fee per company
+    # without setting anything up in the Stripe dashboard first. When STRIPE_SECRET_KEY isn't
+    # configured yet, this is a no-op: the proposal still gets created, just without a link.
+    api_key = os.getenv("STRIPE_SECRET_KEY", "").strip()
+    if not api_key:
+        return None, None, ""
+
+    try:
+        stripe.api_key = api_key
+        success_url = request.build_absolute_uri("/success.html") + "?session_id={CHECKOUT_SESSION_ID}"
+        cancel_url = request.build_absolute_uri("/proposals.html")
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {"name": f"{product_name} — Monthly Client Access"},
+                        "recurring": {"interval": "month"},
+                        "unit_amount": int(round(max(0.0, float(proposal.monthly_fee or 0)) * 100)),
+                    },
+                    "quantity": 1,
+                }
+            ],
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata={"proposalId": proposal.id, "company": proposal.company},
+        )
+        return session.id, session.url, ""
+    except Exception as exc:
+        return None, None, str(exc)
+
+
+@require_http_methods(["GET", "POST"])
+@csrf_exempt
+@require_api_key
+def api_proposals(request):
+    if request.method == "GET":
+        items = Proposal.objects.all().select_related("product").order_by("-created_at")
+        return JsonResponse([serialize_proposal(item) for item in items], safe=False)
+
+    payload = parse_json_body(request)
+    company = str(payload.get("company") or "").strip()
+    if not company:
+        return JsonResponse({"error": "company is required"}, status=400)
+
+    product = Product.objects.filter(id=str(payload.get("productId") or "")).first()
+    price_override = payload.get("price")
+    monthly_fee = float(price_override) if price_override not in (None, "") else float(product.price_from if product else 0)
+
+    now = dj_timezone.now()
+    proposal = Proposal.objects.create(
+        id=str(uuid.uuid4()),
+        company=company,
+        contact=str(payload.get("contact") or ""),
+        product=product,
+        monthly_fee=monthly_fee,
+        scope=str(payload.get("scope") or ""),
+        created_at=now,
+        updated_at=now,
+    )
+
+    session_id, checkout_url, error = create_stripe_checkout_session(
+        request, proposal, product.name if product else "Monthly Client Access"
+    )
+    if checkout_url:
+        proposal.status = Proposal.Status.CHECKOUT_READY
+        proposal.stripe_checkout_url = checkout_url
+        proposal.stripe_checkout_session_id = session_id or ""
+        proposal.save(update_fields=["status", "stripe_checkout_url", "stripe_checkout_session_id", "updated_at"])
+    elif error:
+        proposal.status = Proposal.Status.ERROR
+        proposal.stripe_error = error
+        proposal.save(update_fields=["status", "stripe_error", "updated_at"])
+
+    append_activity(
+        "proposal.created",
+        f"Subscription plan drafted for {company}" + (" with Stripe checkout link" if checkout_url else " (Stripe not configured yet)"),
+        {"proposalId": proposal.id, "company": company},
+    )
+    append_audit("proposal.created", getattr(request, "auth_actor", "system"), "proposal", proposal.id, {"company": company})
+
+    return JsonResponse(serialize_proposal(proposal), status=201)
+
+
+@require_http_methods(["DELETE"])
+@csrf_exempt
+@require_api_key
+def api_proposal_item(_request, proposal_id):
+    item = Proposal.objects.filter(id=proposal_id).first()
+    if not item:
+        return JsonResponse({"error": "not found"}, status=404)
+    item.delete()
+    return JsonResponse({"ok": True})
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+@require_api_key
+def api_proposals_bulk_delete(request):
+    payload = parse_json_body(request)
+    ids = [str(item) for item in (payload.get("ids") or []) if item]
+    if not ids:
+        return JsonResponse({"error": "ids is required"}, status=400)
+    removed, _ = Proposal.objects.filter(id__in=ids).delete()
+    return JsonResponse({"removed": removed})
 
 
 @require_GET
