@@ -756,9 +756,17 @@ def check_for_replies(now=None):
             if not prospect:
                 continue
 
+            # A reply is the strongest real signal this app ever gets that a prospect is
+            # actually interested -- previously score/tier just sat wherever they were set
+            # at creation (usually 30/"Cold") forever, so hot_leads/warm_leads in analytics
+            # silently reported 0 even after real replies came in. Bump both here so the
+            # pipeline reflects what actually happened.
             prospect.follow_up_status = Prospect.FollowUpStatus.IN_CONVERSATION
+            prospect.engagement_level = int(prospect.engagement_level or 0) + 1
+            prospect.score = min(100, int(prospect.score or 30) + 40)
+            prospect.tier = tier_for_score(prospect.score)
             prospect.updated_at = now
-            prospect.save(update_fields=["follow_up_status", "updated_at"])
+            prospect.save(update_fields=["follow_up_status", "engagement_level", "score", "tier", "updated_at"])
             reply_subject = str(parsed.get("Subject", ""))
             EmailEvent.objects.create(
                 id=str(uuid.uuid4()),
