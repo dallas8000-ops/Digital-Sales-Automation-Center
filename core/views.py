@@ -207,6 +207,7 @@ DEFAULT_CONFIG = {
         "jobTitle": "CTO",
         "tone": "consultative",
         "resumeSummary": "",
+        "followUpDelayDays": 4,
         "lastDailyRunOn": None,
         "lastRunSummary": None,
     },
@@ -1448,6 +1449,7 @@ def api_ai_automation_settings(request):
         "jobTitle": payload.get("jobTitle") or existing.get("jobTitle", "CTO"),
         "tone": payload.get("tone") or existing.get("tone", "consultative"),
         "resumeSummary": payload.get("resumeSummary") if payload.get("resumeSummary") is not None else existing.get("resumeSummary", ""),
+        "followUpDelayDays": max(1, min(30, int(payload.get("followUpDelayDays") or existing.get("followUpDelayDays", 4)))),
     }
     config["aiAutomation"] = updated
     save_config_value(config)
@@ -1471,6 +1473,26 @@ def build_outreach_content(prospect, cfg, config):
             f"{product_name} could help with {prospect.why_fit or 'your current operations'}.\n\n"
             f"Worth a quick call this week?\n\n{job_title}, {founder}"
         )
+    return subject, body
+
+
+def build_followup_content(prospect, cfg, config):
+    original_job = (
+        EmailJob.objects.filter(job_type="outreach", status="sent")
+        .filter(payload__prospectId=prospect.id)
+        .order_by("-processed_at")
+        .first()
+    )
+    original_subject = str((original_job.payload or {}).get("subject") or "") if original_job else ""
+    founder = config.get("founder") or config.get("companyName", "")
+    subject = f"Re: {original_subject}" if original_subject else f"Following up, {prospect.company}"
+    body = (
+        f"Hi {prospect.first_name or 'there'},\n\n"
+        f"Following up on my note below in case it got buried — still think there could be a fit for "
+        f"{prospect.company}, and I'd rather ask directly than assume it's a no.\n\n"
+        f"If now isn't the right time, no worries at all — just let me know and I won't follow up again.\n\n"
+        f"Best,\n{founder}"
+    )
     return subject, body
 
 
@@ -1544,22 +1566,77 @@ def api_ai_automation_run(_request):
         )
         queued.append({"prospectId": prospect.id, "company": prospect.company, "jobId": job.id})
 
+    # Follow-up pass: prospects whose first outreach was sent and never followed up on.
+    # Without this, "outreach_sent" was a dead end — nothing in the app ever re-engaged
+    # a prospect who didn't reply to the first email, even though most real replies come
+    # from a follow-up, not the initial touch.
+    follow_up_delay_days = max(1, min(30, int(cfg.get("followUpDelayDays") or 4)))
+    follow_up_cutoff = dj_timezone.now() - timedelta(days=follow_up_delay_days)
+    already_followed_up_prospect_ids = {
+        pid for pid in (
+            (job.payload or {}).get("prospectId") for job in EmailJob.objects.filter(job_type="follow-up")
+        ) if pid
+    }
+    followup_candidates = list(
+        Prospect.objects.filter(follow_up_status=Prospect.FollowUpStatus.OUTREACH_SENT)
+        .exclude(id__in=already_followed_up_prospect_ids)
+        .order_by("-score", "company")[: cap * 5]
+    )
+
+    followed_up = []
+    for prospect in followup_candidates:
+        if len(followed_up) >= cap:
+            break
+        expected_email = str(prospect.verified_email or prospect.email or "").strip().lower()
+        if not is_prospect_compliance_ready(prospect, expected_email):
+            continue
+        if SuppressionList.objects.filter(email=expected_email).exists():
+            continue
+        original_sent = (
+            EmailJob.objects.filter(job_type="outreach", status="sent")
+            .filter(payload__prospectId=prospect.id)
+            .order_by("-processed_at")
+            .first()
+        )
+        if not original_sent or not original_sent.processed_at or original_sent.processed_at > follow_up_cutoff:
+            continue
+
+        subject, body = build_followup_content(prospect, cfg, config)
+        job = EmailJob.objects.create(
+            id=str(uuid.uuid4()),
+            job_type="follow-up",
+            to_email=expected_email,
+            status="pending",
+            payload={"prospectId": prospect.id, "subject": subject, "body": body},
+            created_at=dj_timezone.now(),
+            updated_at=dj_timezone.now(),
+        )
+        prospect.follow_up_status = Prospect.FollowUpStatus.FOLLOW_UP_SCHEDULED
+        prospect.updated_at = dj_timezone.now()
+        prospect.save(update_fields=["follow_up_status", "updated_at"])
+        followed_up.append({"prospectId": prospect.id, "company": prospect.company, "jobId": job.id})
+
     summary = {
         "mode": "manual",
         "ranAt": now,
         "topProspectsEvaluated": len(candidates),
         "outreachQueued": len(queued),
-        "followUpsQueued": 0,
+        "followUpsQueued": len(followed_up),
         "repliedInquiriesReviewed": 0,
         "skippedNotComplianceReady": skipped_not_ready,
         "skippedSuppressed": skipped_suppressed,
         "recommendations": queued,
+        "followUps": followed_up,
     }
     cfg["lastRunSummary"] = summary
     cfg["lastDailyRunOn"] = now.split("T")[0]
     config["aiAutomation"] = cfg
     save_config_value(config)
-    append_activity("ai.automation.run", f"Queued {len(queued)} outreach email(s)", summary)
+    append_activity(
+        "ai.automation.run",
+        f"Queued {len(queued)} outreach email(s), {len(followed_up)} follow-up(s)",
+        summary,
+    )
     cache.delete(ANALYTICS_CACHE_KEY)
     return JsonResponse({"ok": True, "summary": summary})
 
