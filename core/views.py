@@ -1,12 +1,15 @@
 import csv
 import hashlib
+import imaplib
 import json
 import os
 import re
 import smtplib
 import uuid
 from datetime import datetime, timedelta, timezone
+from email import message_from_bytes
 from email.message import EmailMessage
+from email.utils import parseaddr
 from functools import wraps
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -705,6 +708,86 @@ def send_via_smtp(to_email, subject, body_text, unsubscribe_url=None):
             server.send_message(message)
 
 
+class ImapNotConfigured(Exception):
+    """Raised when there's no mailbox to check (reuses SMTP_USER/SMTP_PASSWORD)."""
+
+
+def check_for_replies(now=None):
+    # Nothing in the app ever knew whether a prospect actually replied -- a human had to
+    # notice and update the pipeline by hand. This checks the same Gmail inbox outreach is
+    # sent from (Gmail app passwords work for IMAP too, so no new credentials are needed),
+    # matches unread senders against prospects we've emailed, and moves them to
+    # "in_conversation" so a reply never sits there looking like silence.
+    host = os.getenv("IMAP_HOST", "imap.gmail.com").strip()
+    port = int(os.getenv("IMAP_PORT", "993") or 993)
+    user = os.getenv("SMTP_USER", "").strip()
+    password = os.getenv("SMTP_PASSWORD", "").strip()
+
+    if not (host and user and password):
+        raise ImapNotConfigured("SMTP_USER and SMTP_PASSWORD must be set to check for replies")
+
+    now = now or dj_timezone.now()
+    awaiting_reply = Prospect.objects.filter(
+        follow_up_status__in=[
+            Prospect.FollowUpStatus.OUTREACH_SENT,
+            Prospect.FollowUpStatus.FOLLOW_UP_SCHEDULED,
+        ]
+    )
+    by_email = {}
+    for prospect in awaiting_reply:
+        key = str(prospect.verified_email or prospect.email or "").strip().lower()
+        if key:
+            by_email[key] = prospect
+
+    if not by_email:
+        return {"checked": 0, "matched": 0, "replies": []}
+
+    checked = 0
+    replies = []
+    conn = imaplib.IMAP4_SSL(host, port, timeout=20)
+    try:
+        conn.login(user, password)
+        conn.select("INBOX")
+        status, data = conn.search(None, "UNSEEN")
+        message_ids = data[0].split() if status == "OK" and data and data[0] else []
+
+        for msg_id in message_ids:
+            checked += 1
+            status, msg_data = conn.fetch(msg_id, "(RFC822)")
+            if status != "OK" or not msg_data or not msg_data[0]:
+                continue
+            parsed = message_from_bytes(msg_data[0][1])
+            _, from_addr = parseaddr(parsed.get("From", ""))
+            from_addr = str(from_addr or "").strip().lower()
+            prospect = by_email.get(from_addr)
+            if not prospect:
+                continue
+
+            prospect.follow_up_status = Prospect.FollowUpStatus.IN_CONVERSATION
+            prospect.updated_at = now
+            prospect.save(update_fields=["follow_up_status", "updated_at"])
+            EmailEvent.objects.create(
+                id=str(uuid.uuid4()),
+                event_type="email.reply_detected",
+                job=None,
+                metadata={
+                    "prospectId": prospect.id,
+                    "company": prospect.company,
+                    "fromEmail": from_addr,
+                    "subject": str(parsed.get("Subject", "")),
+                },
+                created_at=now,
+            )
+            replies.append({"prospectId": prospect.id, "company": prospect.company, "fromEmail": from_addr})
+    finally:
+        try:
+            conn.logout()
+        except Exception:
+            pass
+
+    return {"checked": checked, "matched": len(replies), "replies": replies}
+
+
 @require_GET
 def api_health(_request):
     return JsonResponse({"ok": True, "service": "digital-sales-automation-center"})
@@ -1267,12 +1350,8 @@ def api_email_job_item(request, job_id):
     )
 
 
-@require_http_methods(["POST"])
-@csrf_exempt
-@require_api_key
-def api_email_jobs_process(request):
-    payload = parse_json_body(request)
-    requested_limit = int(payload.get("limit") or 500)
+def process_pending_email_jobs(requested_limit=500, actor="system"):
+    requested_limit = int(requested_limit or 500)
     send_rate_cap = get_send_rate_cap()
     effective_limit = min(max(1, requested_limit), send_rate_cap)
     jobs = list(EmailJob.objects.filter(status="pending", available_at__lte=dj_timezone.now()).order_by("created_at")[:effective_limit])
@@ -1400,26 +1479,34 @@ def api_email_jobs_process(request):
     )
     append_audit(
         "email.jobs.processed",
-        getattr(request, "auth_actor", "system"),
+        actor,
         "email_jobs",
         "batch",
         {"processed": processed, "sent": sent, "suppressed": suppressed, "blockedCompliance": blocked_compliance, "failed": failed},
     )
     cache.delete(ANALYTICS_CACHE_KEY)
     remaining = EmailJob.objects.filter(status="pending").count()
-    return JsonResponse(
-        {
-            "requestedLimit": requested_limit,
-            "sendRateCap": send_rate_cap,
-            "effectiveLimit": effective_limit,
-            "processed": processed,
-            "sent": sent,
-            "suppressed": suppressed,
-            "blockedCompliance": blocked_compliance,
-            "failed": failed,
-            "remaining": remaining,
-        }
-    )
+    return {
+        "requestedLimit": requested_limit,
+        "sendRateCap": send_rate_cap,
+        "effectiveLimit": effective_limit,
+        "processed": processed,
+        "sent": sent,
+        "suppressed": suppressed,
+        "blockedCompliance": blocked_compliance,
+        "failed": failed,
+        "remaining": remaining,
+    }
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+@require_api_key
+def api_email_jobs_process(request):
+    payload = parse_json_body(request)
+    requested_limit = int(payload.get("limit") or 500)
+    summary = process_pending_email_jobs(requested_limit, actor=getattr(request, "auth_actor", "system"))
+    return JsonResponse(summary)
 
 
 @require_GET
@@ -1496,22 +1583,21 @@ def build_followup_content(prospect, cfg, config):
     return subject, body
 
 
-@require_http_methods(["POST"])
-@csrf_exempt
-@require_api_key
-def api_ai_automation_run(_request):
+def run_automation_cycle(mode="manual", actor="system"):
     # Used to be a pure no-op: it recorded a "ran" timestamp but queued nothing, because
-    # nothing anywhere in the app created EmailJob rows. This is the real queueing step —
-    # it finds compliance-ready prospects who haven't been reached yet and queues one
-    # outreach EmailJob per prospect (up to the configured daily limit). Sending itself
-    # still happens separately via POST /api/email-jobs/process.
+    # nothing anywhere in the app created EmailJob rows. This is the real cycle — it checks
+    # for replies first (so a prospect who already answered doesn't get a needless
+    # follow-up queued in the same run), then finds compliance-ready prospects who haven't
+    # been reached yet and queues one outreach EmailJob per prospect (up to the configured
+    # daily limit), then queues follow-ups for anyone who went unanswered long enough.
+    # Sending itself still happens separately via process_pending_email_jobs().
     config = get_config_value()
     cfg = config.get("aiAutomation", DEFAULT_CONFIG["aiAutomation"])
     now = now_iso()
 
     if not cfg.get("enabled", True):
         summary = {
-            "mode": "manual",
+            "mode": mode,
             "ranAt": now,
             "topProspectsEvaluated": 0,
             "outreachQueued": 0,
@@ -1525,7 +1611,15 @@ def api_ai_automation_run(_request):
         config["aiAutomation"] = cfg
         save_config_value(config)
         append_activity("ai.automation.run", "AI automation run skipped (disabled)", summary)
-        return JsonResponse({"ok": True, "summary": summary})
+        return summary
+
+    try:
+        reply_result = check_for_replies()
+    except ImapNotConfigured:
+        reply_result = {"checked": 0, "matched": 0, "replies": [], "note": "IMAP not configured (reuses SMTP_USER/SMTP_PASSWORD)."}
+    except Exception as exc:
+        reply_result = {"checked": 0, "matched": 0, "replies": [], "error": str(exc)}
+    replied_count = reply_result.get("matched", 0)
 
     cap = max(1, min(int(cfg.get("dailyLimit") or 25), 200))
     already_queued_prospect_ids = {
@@ -1617,16 +1711,17 @@ def api_ai_automation_run(_request):
         followed_up.append({"prospectId": prospect.id, "company": prospect.company, "jobId": job.id})
 
     summary = {
-        "mode": "manual",
+        "mode": mode,
         "ranAt": now,
         "topProspectsEvaluated": len(candidates),
         "outreachQueued": len(queued),
         "followUpsQueued": len(followed_up),
-        "repliedInquiriesReviewed": 0,
+        "repliedInquiriesReviewed": replied_count,
         "skippedNotComplianceReady": skipped_not_ready,
         "skippedSuppressed": skipped_suppressed,
         "recommendations": queued,
         "followUps": followed_up,
+        "replies": reply_result.get("replies", []),
     }
     cfg["lastRunSummary"] = summary
     cfg["lastDailyRunOn"] = now.split("T")[0]
@@ -1634,10 +1729,19 @@ def api_ai_automation_run(_request):
     save_config_value(config)
     append_activity(
         "ai.automation.run",
-        f"Queued {len(queued)} outreach email(s), {len(followed_up)} follow-up(s)",
+        f"Queued {len(queued)} outreach email(s), {len(followed_up)} follow-up(s), detected {replied_count} repl(y/ies)",
         summary,
     )
+    append_audit("ai.automation.run", actor, "ai_automation", "run", summary)
     cache.delete(ANALYTICS_CACHE_KEY)
+    return summary
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+@require_api_key
+def api_ai_automation_run(request):
+    summary = run_automation_cycle(mode="manual", actor=getattr(request, "auth_actor", "system"))
     return JsonResponse({"ok": True, "summary": summary})
 
 
