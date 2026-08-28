@@ -144,13 +144,6 @@ DEFAULT_CAMPAIGN_TARGETS = [
     },
     {
         "campaign": "camp-east-african-fintech",
-        "company": "MFS Africa",
-        "country": "Kenya",
-        "industry": "FinTech",
-        "matchedProducts": ["Elite Fintech Systems"],
-    },
-    {
-        "campaign": "camp-east-african-fintech",
         "company": "Cellulant",
         "country": "Kenya",
         "industry": "FinTech",
@@ -766,6 +759,7 @@ def check_for_replies(now=None):
             prospect.follow_up_status = Prospect.FollowUpStatus.IN_CONVERSATION
             prospect.updated_at = now
             prospect.save(update_fields=["follow_up_status", "updated_at"])
+            reply_subject = str(parsed.get("Subject", ""))
             EmailEvent.objects.create(
                 id=str(uuid.uuid4()),
                 event_type="email.reply_detected",
@@ -774,10 +768,11 @@ def check_for_replies(now=None):
                     "prospectId": prospect.id,
                     "company": prospect.company,
                     "fromEmail": from_addr,
-                    "subject": str(parsed.get("Subject", "")),
+                    "subject": reply_subject,
                 },
                 created_at=now,
             )
+            notify_owner_of_reply(prospect, from_addr, reply_subject)
             replies.append({"prospectId": prospect.id, "company": prospect.company, "fromEmail": from_addr})
     finally:
         try:
@@ -786,6 +781,33 @@ def check_for_replies(now=None):
             pass
 
     return {"checked": checked, "matched": len(replies), "replies": replies}
+
+
+def notify_owner_of_reply(prospect, from_addr, reply_subject):
+    # A reply is the one moment this whole pipeline exists for -- a real person's
+    # attention, not another automated step. Automatically flipping a status field is
+    # useless if nobody notices for days, so this pings the owner's own inbox the moment
+    # one comes in. Reuses the same Gmail account outreach is sent from as both sender
+    # and recipient (NOTIFY_EMAIL can override), so no new credentials are needed and
+    # a failure here never blocks marking the reply as detected.
+    notify_email = os.getenv("NOTIFY_EMAIL", "").strip() or os.getenv("SMTP_USER", "").strip()
+    if not notify_email:
+        return
+    try:
+        send_via_smtp(
+            notify_email,
+            f"Reply from {prospect.company} — worth a look",
+            (
+                f"{prospect.company} replied to your outreach.\n\n"
+                f"From: {from_addr}\n"
+                f"Subject: {reply_subject or '(no subject)'}\n\n"
+                f"They've been moved to \"in conversation\" in the pipeline -- this is the point "
+                f"where it's worth a personal reply rather than another automated email."
+            ),
+        )
+    except Exception:
+        # Never let a notification failure stop the reply from being recorded.
+        pass
 
 
 @require_GET
@@ -817,14 +839,30 @@ def api_analytics(_request):
     pipeline_value = sum(float(item.score or 0) * 100 for item in prospects)
     recent_activity = [serialize_activity(item) for item in Activity.objects.all().order_by("-created_at")[:10]]
 
+    # These used to be hardcoded zeros -- placeholders from before the app could actually
+    # detect a reply. Now that check_for_replies() records real "email.reply_detected"
+    # events, this can report the real numbers instead of a permanent zero.
+    contacted_prospect_ids = {
+        pid for pid in (
+            (job.payload or {}).get("prospectId") for job in EmailJob.objects.filter(status="sent")
+        ) if pid
+    }
+    replied_prospect_ids = set(
+        EmailEvent.objects.filter(event_type="email.reply_detected")
+        .exclude(metadata__prospectId__isnull=True)
+        .values_list("metadata__prospectId", flat=True)
+    )
+    reply_rate = round((len(replied_prospect_ids) / len(contacted_prospect_ids)) * 100, 1) if contacted_prospect_ids else 0
+    open_inquiries = Prospect.objects.filter(follow_up_status=Prospect.FollowUpStatus.IN_CONVERSATION).count()
+
     payload = {
         "prospects": len(prospects),
         "emailsSent": EmailEvent.objects.filter(event_type="email.sent").count(),
         "meetings": demos_scheduled,
         "pipelineValue": pipeline_value,
-        "replyRate": 0,
+        "replyRate": reply_rate,
         "meetingRate": 0,
-        "openInquiries": 0,
+        "openInquiries": open_inquiries,
         "hotLeads": hot_leads,
         "warmLeads": warm_leads,
         "demosScheduled": demos_scheduled,
@@ -1802,6 +1840,10 @@ def api_sales_assets(_request):
 
 @require_GET
 def api_sales_calendar(request):
+    # This used to alternate between two hardcoded theme strings regardless of what
+    # Barney actually sells -- a "content calendar" that had no connection to the real
+    # product catalog. It now cycles through the real products, so each month spotlights
+    # an actual thing that can be sold rather than a generic placeholder phrase.
     year = int(request.GET.get("year", datetime.now(timezone.utc).year))
     months = [
         "January",
@@ -1817,18 +1859,21 @@ def api_sales_calendar(request):
         "November",
         "December",
     ]
-    return JsonResponse(
-        [
+    ensure_defaults()
+    products = list(Product.objects.all().order_by("name"))
+    calendar = []
+    for i, m in enumerate(months):
+        product = products[i % len(products)] if products else None
+        calendar.append(
             {
                 "month": m,
                 "year": year,
-                "theme": "AI Engineering Operations" if i % 2 == 0 else "Automation ROI Stories",
-                "emailCampaign": f"{m} Industry Segment Campaign",
+                "theme": f"{product.name} — {product.category}" if product else "General Outreach",
+                "emailCampaign": f"{m} {product.name} Spotlight" if product else f"{m} General Campaign",
+                "product": product.name if product else None,
             }
-            for i, m in enumerate(months)
-        ],
-        safe=False,
-    )
+        )
+    return JsonResponse(calendar, safe=False)
 
 
 @require_GET
