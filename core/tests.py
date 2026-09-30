@@ -291,9 +291,13 @@ class SecretKeyGuardTests(TestCase):
 		import importlib
 		import sys
 
-		with patch.dict(os.environ, env, clear=True):
+		# Stub load_dotenv so a developer's local .env cannot leak into these
+		# cases and make them pass or fail depending on the machine.
+		with patch.dict(os.environ, env, clear=True), patch("dotenv.load_dotenv") as load:
 			sys.modules.pop("backend.settings", None)
-			return importlib.import_module("backend.settings")
+			mod = importlib.import_module("backend.settings")
+		self.last_load_dotenv = load
+		return mod
 
 	def test_rejects_public_default_when_not_debug(self):
 		from django.core.exceptions import ImproperlyConfigured
@@ -315,3 +319,7 @@ class SecretKeyGuardTests(TestCase):
 		key = "k" * 64
 		mod = self._reload_settings({"DJANGO_DEBUG": "false", "DJANGO_SECRET_KEY": key})
 		self.assertEqual(mod.SECRET_KEY, key)
+
+	def test_loads_repo_dotenv_without_overriding_real_env(self):
+		mod = self._reload_settings({"DJANGO_DEBUG": "true"})
+		self.last_load_dotenv.assert_called_once_with(mod.BASE_DIR / ".env", override=False)
