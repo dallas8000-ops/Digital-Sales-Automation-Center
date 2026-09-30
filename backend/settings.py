@@ -15,6 +15,7 @@ import re
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,7 +25,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-this-secret")
+_INSECURE_DEV_SECRET_KEY = "dev-only-change-this-secret"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", _INSECURE_DEV_SECRET_KEY)
 
 def env_bool(name, default=False):
     value = os.getenv(name)
@@ -42,6 +44,16 @@ def env_list(name, default):
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool("DJANGO_DEBUG", False)
+
+# SECRET_KEY signs sessions' auth hash, password-reset tokens and CSRF/messages
+# cookies. The fallback above is public in this repo, so a non-DEBUG process
+# must refuse to boot without a real key (50 chars = Django security.W009).
+if not DEBUG and (SECRET_KEY == _INSECURE_DEV_SECRET_KEY or len(SECRET_KEY) < 50):
+    raise ImproperlyConfigured(
+        "DJANGO_SECRET_KEY is missing, the public dev default, or shorter than "
+        "50 characters. Set a strong random DJANGO_SECRET_KEY, or DJANGO_DEBUG=true "
+        "for local development."
+    )
 
 ALLOWED_HOSTS = env_list(
     "DJANGO_ALLOWED_HOSTS",

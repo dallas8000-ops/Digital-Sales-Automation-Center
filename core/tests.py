@@ -240,3 +240,34 @@ class IdempotencyAndRetryTests(TestCase):
 		self.assertEqual(second.status_code, 201)
 		self.assertEqual(first.json()["id"], second.json()["id"])
 		self.assertEqual(Campaign.objects.filter(name="Legit Campaign").count(), 1)
+
+
+class SecretKeyGuardTests(TestCase):
+	def _reload_settings(self, env):
+		import importlib
+		import sys
+
+		with patch.dict(os.environ, env, clear=True):
+			sys.modules.pop("backend.settings", None)
+			return importlib.import_module("backend.settings")
+
+	def test_rejects_public_default_when_not_debug(self):
+		from django.core.exceptions import ImproperlyConfigured
+
+		with self.assertRaises(ImproperlyConfigured):
+			self._reload_settings({"DJANGO_DEBUG": "false"})
+
+	def test_rejects_short_key_when_not_debug(self):
+		from django.core.exceptions import ImproperlyConfigured
+
+		with self.assertRaises(ImproperlyConfigured):
+			self._reload_settings({"DJANGO_DEBUG": "false", "DJANGO_SECRET_KEY": "x" * 49})
+
+	def test_allows_dev_default_in_debug(self):
+		mod = self._reload_settings({"DJANGO_DEBUG": "true"})
+		self.assertTrue(mod.DEBUG)
+
+	def test_accepts_strong_key_when_not_debug(self):
+		key = "k" * 64
+		mod = self._reload_settings({"DJANGO_DEBUG": "false", "DJANGO_SECRET_KEY": key})
+		self.assertEqual(mod.SECRET_KEY, key)

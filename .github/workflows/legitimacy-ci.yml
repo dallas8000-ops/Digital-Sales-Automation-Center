@@ -9,13 +9,17 @@ on:
 jobs:
   legitimacy-gates:
     runs-on: ubuntu-latest
+    env:
+      # CI-only, non-production value; settings refuse to boot with DEBUG off
+      # unless DJANGO_SECRET_KEY is >= 50 chars and not the public default.
+      DJANGO_SECRET_KEY: ci-only-not-a-secret-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
