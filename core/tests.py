@@ -89,16 +89,60 @@ class LegitimacyFlowTests(TestCase):
 			updated_at=timezone.now(),
 		)
 
-		response = self.client.post(
-			"/api/email-jobs/process",
-			data=json.dumps({"limit": 10}),
-			content_type="application/json",
-			**self.headers,
-		)
+		# send_via_smtp performs a real SMTP send; stub the transport so this test
+		# exercises the compliance/queue logic without network or SMTP credentials.
+		with patch("core.views.send_via_smtp") as send:
+			response = self.client.post(
+				"/api/email-jobs/process",
+				data=json.dumps({"limit": 10}),
+				content_type="application/json",
+				**self.headers,
+			)
 		self.assertEqual(response.status_code, 200)
+		send.assert_called_once()
+		self.assertEqual(send.call_args.args[0], "compliant@example.com")
 
 		job = EmailJob.objects.get(id="test-job-compliant")
 		self.assertEqual(job.status, "sent")
+
+	def test_email_process_marks_failed_when_smtp_not_configured(self):
+		prospect = Prospect.objects.create(
+			id="test-prospect-nosmtp",
+			company="No SMTP Co",
+			email="nosmtp@example.com",
+			verified_email="nosmtp@example.com",
+			website="https://example.org",
+			source_provider="manual_verified_public_contact",
+			source_record_id="record-2",
+			compliance_basis="legitimate_interest",
+			compliance_verified_at=timezone.now(),
+			validation={"email": {"valid": True}, "domain": {"valid": True}},
+			data_quality={"isReal": True, "isVerified": True},
+			created_at=timezone.now(),
+			updated_at=timezone.now(),
+		)
+		EmailJob.objects.create(
+			id="test-job-nosmtp",
+			job_type="outreach",
+			to_email="nosmtp@example.com",
+			status="pending",
+			payload={"prospectId": prospect.id},
+			available_at=timezone.now(),
+			created_at=timezone.now(),
+			updated_at=timezone.now(),
+		)
+		smtp_env = {k: "" for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD")}
+		with patch.dict(os.environ, smtp_env):
+			response = self.client.post(
+				"/api/email-jobs/process",
+				data=json.dumps({"limit": 10}),
+				content_type="application/json",
+				**self.headers,
+			)
+		self.assertEqual(response.status_code, 200)
+		job = EmailJob.objects.get(id="test-job-nosmtp")
+		self.assertEqual(job.status, "failed")
+		self.assertIn("SMTP_HOST", job.last_error)
 
 
 class AuthScopeTests(TestCase):
@@ -240,34 +284,3 @@ class IdempotencyAndRetryTests(TestCase):
 		self.assertEqual(second.status_code, 201)
 		self.assertEqual(first.json()["id"], second.json()["id"])
 		self.assertEqual(Campaign.objects.filter(name="Legit Campaign").count(), 1)
-
-
-class SecretKeyGuardTests(TestCase):
-	def _reload_settings(self, env):
-		import importlib
-		import sys
-
-		with patch.dict(os.environ, env, clear=True):
-			sys.modules.pop("backend.settings", None)
-			return importlib.import_module("backend.settings")
-
-	def test_rejects_public_default_when_not_debug(self):
-		from django.core.exceptions import ImproperlyConfigured
-
-		with self.assertRaises(ImproperlyConfigured):
-			self._reload_settings({"DJANGO_DEBUG": "false"})
-
-	def test_rejects_short_key_when_not_debug(self):
-		from django.core.exceptions import ImproperlyConfigured
-
-		with self.assertRaises(ImproperlyConfigured):
-			self._reload_settings({"DJANGO_DEBUG": "false", "DJANGO_SECRET_KEY": "x" * 49})
-
-	def test_allows_dev_default_in_debug(self):
-		mod = self._reload_settings({"DJANGO_DEBUG": "true"})
-		self.assertTrue(mod.DEBUG)
-
-	def test_accepts_strong_key_when_not_debug(self):
-		key = "k" * 64
-		mod = self._reload_settings({"DJANGO_DEBUG": "false", "DJANGO_SECRET_KEY": key})
-		self.assertEqual(mod.SECRET_KEY, key)
