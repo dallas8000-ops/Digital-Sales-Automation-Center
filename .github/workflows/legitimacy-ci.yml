@@ -40,4 +40,4 @@ jobs:
       - name: Legitimacy smoke tests
         env:
           ADMIN_API_KEY: ci-smoke-key
-        run: python manage.py smoke_legitimacy
+        run: python manage.py smoke_legitimacy --stub-smtp

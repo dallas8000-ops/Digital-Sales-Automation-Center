@@ -1,9 +1,13 @@
 import json
 import os
+from contextlib import ExitStack
+from unittest import mock
 from uuid import uuid4
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.test import Client
+from django.test.utils import override_settings
 from django.utils import timezone
 
 from core.models import EmailJob, Prospect
@@ -12,10 +16,32 @@ from core.models import EmailJob, Prospect
 class Command(BaseCommand):
     help = "Run legitimacy smoke tests for ingest and outbound compliance gates"
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--stub-smtp",
+            action="store_true",
+            help=(
+                "Replace the SMTP transport with a no-op so the compliance gates can be "
+                "verified in CI without real mail credentials or network access."
+            ),
+        )
+
     def handle(self, *args, **options):
+        with ExitStack() as stack:
+            # The Django test Client sends Host: testserver. Settings are already
+            # loaded, so mutating os.environ["DJANGO_ALLOWED_HOSTS"] here has no
+            # effect; override the live setting for the duration of the run.
+            if "testserver" not in settings.ALLOWED_HOSTS and "*" not in settings.ALLOWED_HOSTS:
+                stack.enter_context(
+                    override_settings(ALLOWED_HOSTS=[*settings.ALLOWED_HOSTS, "testserver"])
+                )
+            if options.get("stub_smtp"):
+                stack.enter_context(mock.patch("core.views.send_via_smtp"))
+            self._run()
+
+    def _run(self):
         api_key = os.getenv("ADMIN_API_KEY", "").strip() or "ci-smoke-key"
         os.environ["ADMIN_API_KEY"] = api_key
-        os.environ.setdefault("DJANGO_ALLOWED_HOSTS", "testserver,localhost,127.0.0.1")
 
         client = Client()
         headers = {"HTTP_X_API_KEY": api_key}
