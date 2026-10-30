@@ -25,6 +25,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # environment variables (Railway, CI) always win over the file.
 load_dotenv(BASE_DIR / ".env", override=False)
 
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+
+sentry_sdk.init(
+    dsn=os.environ.get("SENTRY_DSN", ""),
+    integrations=[DjangoIntegration()],
+    traces_sample_rate=0.1,
+    send_default_pii=False,
+    environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
+)
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
